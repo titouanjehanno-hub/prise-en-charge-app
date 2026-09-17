@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { logout } from "@/app/login/actions";
+import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,7 +19,12 @@ export const metadata: Metadata = {
   description: "Préparation et analyse des prises en charge techniques multi-tech",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <html
       lang="fr"
@@ -29,11 +36,21 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <span className="text-sm font-semibold text-slate-900">
               Prise en charge technique
             </span>
-            <nav className="flex gap-4 text-sm text-slate-500">
-              <a href="/contrats" className="hover:text-slate-900">
-                Contrats
-              </a>
-            </nav>
+            {user && (
+              <nav className="flex gap-4 text-sm text-slate-500">
+                <a href="/contrats" className="hover:text-slate-900">
+                  Contrats
+                </a>
+              </nav>
+            )}
+            {user && (
+              <form action={logout} className="ml-auto flex items-center gap-3">
+                <span className="text-xs text-slate-400">{user.email}</span>
+                <button type="submit" className="text-sm text-slate-500 hover:text-slate-900">
+                  Se déconnecter
+                </button>
+              </form>
+            )}
           </div>
         </header>
         <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">{children}</main>
