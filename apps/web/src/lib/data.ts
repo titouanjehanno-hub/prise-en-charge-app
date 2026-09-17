@@ -6,9 +6,11 @@ import type {
   ContratEquipement,
   EquipementReleve,
   EquipementType,
+  EtatEquipement,
   LotTechnique,
   Photo,
   PriseEnCharge,
+  RegleApe,
   Site,
 } from "./types";
 
@@ -288,4 +290,29 @@ export async function getPhotosPourEquipementsReleves(equipementReleveIds: strin
     map.set(photo.equipementReleveId, list);
   }
   return map;
+}
+
+function mapRegleApe(row: {
+  id: string;
+  equipement_type_id: string | null;
+  etats: string[] | null;
+  plaque_champ_cle: string | null;
+  plaque_champ_valeurs: string[] | null;
+  action: string;
+}): RegleApe {
+  return {
+    id: row.id,
+    equipementTypeId: row.equipement_type_id ?? undefined,
+    etats: (row.etats as EtatEquipement[] | null) ?? undefined,
+    plaqueChampCle: row.plaque_champ_cle ?? undefined,
+    plaqueChampValeurs: row.plaque_champ_valeurs ?? undefined,
+    action: row.action,
+  };
+}
+
+export async function getReglesApe(): Promise<RegleApe[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("regles_ape").select("*");
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapRegleApe);
 }

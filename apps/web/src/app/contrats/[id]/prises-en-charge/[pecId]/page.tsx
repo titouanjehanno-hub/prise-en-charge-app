@@ -8,9 +8,10 @@ import {
   getPhotosPourEquipementsReleves,
   getPriseEnCharge,
   getReferentiel,
+  getReglesApe,
   getSite,
 } from "@/lib/data";
-import type { ContratEquipement, EquipementReleve, EquipementType, Photo } from "@/lib/types";
+import type { ContratEquipement, EquipementReleve, EquipementType, Photo, RegleApe } from "@/lib/types";
 import { validerPriseEnCharge } from "./actions";
 
 const STATUT_LABEL: Record<string, string> = {
@@ -103,12 +104,13 @@ export default async function AnalysePage(
   const [contrat, priseEnCharge] = await Promise.all([getContrat(id), getPriseEnCharge(pecId)]);
   if (!contrat || !priseEnCharge || priseEnCharge.contratId !== id) notFound();
 
-  const [client, site, { equipementTypes }, contratEquipements, equipementsReleves] = await Promise.all([
+  const [client, site, { equipementTypes }, contratEquipements, equipementsReleves, reglesApe] = await Promise.all([
     getClient(contrat.clientId),
     getSite(contrat.siteId),
     getReferentiel(),
     getContratEquipements(id),
     getEquipementsReleves(pecId),
+    getReglesApe(),
   ]);
   if (!client || !site) notFound();
 
@@ -150,6 +152,34 @@ export default async function AnalysePage(
   function localisationCe(ce: ContratEquipement) {
     return [ce.batiment, ce.etage, ce.local].filter(Boolean).join(" · ") || undefined;
   }
+
+  function matchRegle(regle: RegleApe, releve: EquipementReleve): boolean {
+    if (regle.equipementTypeId && regle.equipementTypeId !== releve.equipementTypeId) return false;
+    if (regle.etats && regle.etats.length > 0) {
+      if (!releve.etat || !regle.etats.includes(releve.etat)) return false;
+    }
+    if (regle.plaqueChampCle) {
+      const valeur = releve.plaqueSignaletique[regle.plaqueChampCle];
+      if (!valeur || !(regle.plaqueChampValeurs ?? []).includes(valeur)) return false;
+    }
+    return true;
+  }
+
+  const contratEquipementById = new Map(contratEquipements.map((ce) => [ce.id, ce]));
+  const recommandations = equipementsReleves
+    .map((releve) => {
+      const actions = reglesApe.filter((r) => matchRegle(r, releve)).map((r) => r.action);
+      if (actions.length === 0) return null;
+      const ce = releve.contratEquipementId ? contratEquipementById.get(releve.contratEquipementId) : undefined;
+      const type = equipementTypeById.get(releve.equipementTypeId);
+      return {
+        releve,
+        title: releve.designation || ce?.designation || type?.name || "—",
+        subtitle: releve.localisation || (ce ? localisationCe(ce) : undefined),
+        actions,
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
 
   return (
     <div className="flex flex-col gap-6">
@@ -193,7 +223,29 @@ export default async function AnalysePage(
         <StatCard label="Manquants" value={manquants.length} color="text-red-600" />
         <StatCard label="Non trouvés" value={nonTrouves.length} color="text-red-600" />
         <StatCard label="Hors contrat" value={horsContrat.length} color="text-indigo-600" />
+        <StatCard label="Actions énergétiques suggérées" value={recommandations.length} color="text-teal-600" />
       </div>
+
+      {recommandations.length > 0 && (
+        <section>
+          <h2 className="mb-2 text-sm font-semibold text-teal-700">
+            Actions de performance énergétique suggérées — {recommandations.length}
+          </h2>
+          <div className="flex flex-col gap-2">
+            {recommandations.map(({ releve, title, subtitle, actions }) => (
+              <div key={releve.id} className="rounded-md border border-teal-100 bg-teal-50/60 p-3">
+                <p className="text-sm font-medium text-slate-800">{title}</p>
+                {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
+                <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-600">
+                  {actions.map((action) => (
+                    <li key={action}>{action}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="mb-3 text-sm font-semibold text-slate-900">Synthèse</h2>

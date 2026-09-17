@@ -111,3 +111,12 @@ export interface Photo {
   type: PhotoType;
   url: string;
 }
+
+export interface RegleApe {
+  id: string;
+  equipementTypeId?: string;
+  etats?: EtatEquipement[];
+  plaqueChampCle?: string;
+  plaqueChampValeurs?: string[];
+  action: string;
+}
