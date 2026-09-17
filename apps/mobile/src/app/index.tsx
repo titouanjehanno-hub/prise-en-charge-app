@@ -10,13 +10,38 @@ import {
   View,
 } from "react-native";
 import { ProtectedScreen } from "@/components/protected-screen";
-import { getContrat, getContratsWithRelations, getOrCreatePriseEnCharge } from "@/lib/data";
+import {
+  getContrat,
+  getContratsWithRelations,
+  getMesPrisesEnChargeParContrat,
+  getOrCreatePriseEnCharge,
+} from "@/lib/data";
+import { PEC_STATUT_COLOR, PEC_STATUT_LABEL } from "@/lib/status-labels";
 import { supabase } from "@/lib/supabase";
-import type { ContratListItem } from "@/lib/types";
+import type { ContratListItem, PriseEnCharge } from "@/lib/types";
+
+function PecStatusBadge({ priseEnCharge }: { priseEnCharge?: PriseEnCharge }) {
+  if (!priseEnCharge) {
+    return (
+      <View style={[styles.badge, { backgroundColor: "#f1f5f9" }]}>
+        <Text style={[styles.badgeText, { color: "#94a3b8" }]}>Non démarrée</Text>
+      </View>
+    );
+  }
+  const color = PEC_STATUT_COLOR[priseEnCharge.statut] ?? "#64748b";
+  return (
+    <View style={[styles.badge, { backgroundColor: `${color}1a` }]}>
+      <Text style={[styles.badgeText, { color }]}>
+        {PEC_STATUT_LABEL[priseEnCharge.statut] ?? priseEnCharge.statut}
+      </Text>
+    </View>
+  );
+}
 
 function ContratsList() {
   const router = useRouter();
   const [contrats, setContrats] = useState<ContratListItem[] | null>(null);
+  const [pecByContrat, setPecByContrat] = useState<Map<string, PriseEnCharge>>(new Map());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -24,8 +49,12 @@ function ContratsList() {
   const load = useCallback(async () => {
     try {
       setError(null);
-      const data = await getContratsWithRelations();
+      const [data, pecMap] = await Promise.all([
+        getContratsWithRelations(),
+        getMesPrisesEnChargeParContrat(),
+      ]);
       setContrats(data);
+      setPecByContrat(pecMap);
     } catch {
       setError("Impossible de charger les contrats.");
     }
@@ -90,7 +119,10 @@ function ContratsList() {
           onPress={() => openContrat(item.id)}
           disabled={openingId === item.id}
         >
-          <Text style={styles.reference}>{item.reference}</Text>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.reference}>{item.reference}</Text>
+            <PecStatusBadge priseEnCharge={pecByContrat.get(item.id)} />
+          </View>
           <Text style={styles.client}>
             {item.clientName} — {item.siteName}
           </Text>
@@ -124,7 +156,10 @@ const styles = StyleSheet.create({
     borderColor: "#e2e8f0",
     gap: 4,
   },
+  cardHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   reference: { fontSize: 15, fontWeight: "600", color: "#0f172a" },
+  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  badgeText: { fontSize: 11, fontWeight: "600" },
   client: { fontSize: 13, color: "#64748b" },
   emptyText: { color: "#94a3b8" },
   error: { color: "#dc2626", textAlign: "center", marginTop: 12 },

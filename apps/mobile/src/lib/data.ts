@@ -150,6 +150,25 @@ export async function getContrat(contratId: string): Promise<Contrat | undefined
   return data ? mapContrat(data) : undefined;
 }
 
+export async function getMesPrisesEnChargeParContrat(): Promise<Map<string, PriseEnCharge>> {
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData.user?.id;
+  if (!userId) return new Map();
+
+  const { data, error } = await supabase
+    .from("prises_en_charge")
+    .select("*")
+    .eq("technicien_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+
+  const map = new Map<string, PriseEnCharge>();
+  for (const row of data ?? []) {
+    if (!map.has(row.contrat_id)) map.set(row.contrat_id, mapPriseEnCharge(row));
+  }
+  return map;
+}
+
 export async function getReferentiel(): Promise<{
   lotsTechniques: LotTechnique[];
   equipementTypes: EquipementType[];
