@@ -11,10 +11,10 @@ import {
 } from "react-native";
 import { ProtectedScreen } from "@/components/protected-screen";
 import {
+  getActivePriseEnCharge,
   getContrat,
   getContratsWithRelations,
   getMesPrisesEnChargeParContrat,
-  getOrCreatePriseEnCharge,
 } from "@/lib/data";
 import { PEC_STATUT_COLOR, PEC_STATUT_LABEL } from "@/lib/status-labels";
 import { supabase } from "@/lib/supabase";
@@ -77,8 +77,12 @@ function ContratsList() {
     try {
       const contrat = await getContrat(contratId);
       if (!contrat) throw new Error("Contrat introuvable.");
-      const priseEnCharge = await getOrCreatePriseEnCharge(contrat);
-      router.push(`/prise-en-charge/${priseEnCharge.id}`);
+      const active = await getActivePriseEnCharge(contrat);
+      if (active) {
+        router.push(`/prise-en-charge/${active.id}`);
+      } else {
+        router.push(`/contrat/${contratId}`);
+      }
     } catch {
       setError("Impossible d'ouvrir ce contrat.");
     } finally {

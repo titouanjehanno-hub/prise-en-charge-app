@@ -41,6 +41,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 <a href="/contrats" className="hover:text-slate-900">
                   Contrats
                 </a>
+                <a href="/regles-ape" className="hover:text-slate-900">
+                  Règles APE
+                </a>
               </nav>
             )}
             {user && (

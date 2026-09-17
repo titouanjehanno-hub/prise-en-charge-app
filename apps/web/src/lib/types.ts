@@ -114,6 +114,15 @@ export interface Photo {
 
 export interface RegleApe {
   id: string;
+  orgId?: string;
+  equipementTypeId?: string;
+  etats?: EtatEquipement[];
+  plaqueChampCle?: string;
+  plaqueChampValeurs?: string[];
+  action: string;
+}
+
+export interface NewRegleApeInput {
   equipementTypeId?: string;
   etats?: EtatEquipement[];
   plaqueChampCle?: string;

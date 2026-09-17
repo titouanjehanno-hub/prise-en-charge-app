@@ -59,6 +59,7 @@ export interface PriseEnCharge {
   contratId: string;
   siteId: string;
   technicienId?: string;
+  technicienNom?: string;
   statut: StatutPriseEnCharge;
   dateRealisation?: string;
 }

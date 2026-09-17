@@ -88,12 +88,14 @@ function mapPriseEnCharge(row: {
   technicien_id: string | null;
   statut: PriseEnCharge["statut"];
   date_realisation: string | null;
+  app_users?: { full_name: string } | null;
 }): PriseEnCharge {
   return {
     id: row.id,
     contratId: row.contrat_id,
     siteId: row.site_id,
     technicienId: row.technicien_id ?? undefined,
+    technicienNom: row.app_users?.full_name ?? undefined,
     statut: row.statut,
     dateRealisation: row.date_realisation ?? undefined,
   };
@@ -207,23 +209,32 @@ export async function getContratEquipement(id: string): Promise<ContratEquipemen
   return data ? mapContratEquipement(data) : undefined;
 }
 
-export async function getOrCreatePriseEnCharge(contrat: Contrat): Promise<PriseEnCharge> {
+// Renvoie la prise en charge de CE technicien pour ce contrat encore active
+// (préparée / en cours / en pause), sans jamais rouvrir une prise en charge
+// déjà terminée ou validée — pour permettre plusieurs visites successives
+// sur le même contrat sans perdre l'historique.
+export async function getActivePriseEnCharge(contrat: Contrat): Promise<PriseEnCharge | undefined> {
   const { data: userData } = await supabase.auth.getUser();
   const userId = userData.user?.id;
   if (!userId) throw new Error("Utilisateur non connecté.");
 
-  // On rouvre toujours la dernière prise en charge existante pour ce contrat,
-  // y compris terminée/validée, pour ne jamais perdre l'accès à ses données.
   const { data: existing, error: findError } = await supabase
     .from("prises_en_charge")
     .select("*")
     .eq("contrat_id", contrat.id)
     .eq("technicien_id", userId)
+    .in("statut", ["preparee", "en_cours", "en_pause"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (findError) throw new Error(findError.message);
-  if (existing) return mapPriseEnCharge(existing);
+  return existing ? mapPriseEnCharge(existing) : undefined;
+}
+
+export async function creerNouvellePriseEnCharge(contrat: Contrat): Promise<PriseEnCharge> {
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData.user?.id;
+  if (!userId) throw new Error("Utilisateur non connecté.");
 
   const orgId = await getCurrentOrgId();
   const { data: created, error: createError } = await supabase
@@ -239,6 +250,16 @@ export async function getOrCreatePriseEnCharge(contrat: Contrat): Promise<PriseE
     .single();
   if (createError) throw new Error(createError.message);
   return mapPriseEnCharge(created);
+}
+
+export async function getPrisesEnChargePourContrat(contratId: string): Promise<PriseEnCharge[]> {
+  const { data, error } = await supabase
+    .from("prises_en_charge")
+    .select("*, app_users!technicien_id(full_name)")
+    .eq("contrat_id", contratId)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapPriseEnCharge);
 }
 
 export async function getPriseEnCharge(id: string): Promise<PriseEnCharge | undefined> {

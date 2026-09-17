@@ -294,6 +294,7 @@ export async function getPhotosPourEquipementsReleves(equipementReleveIds: strin
 
 function mapRegleApe(row: {
   id: string;
+  org_id: string | null;
   equipement_type_id: string | null;
   etats: string[] | null;
   plaque_champ_cle: string | null;
@@ -302,6 +303,7 @@ function mapRegleApe(row: {
 }): RegleApe {
   return {
     id: row.id,
+    orgId: row.org_id ?? undefined,
     equipementTypeId: row.equipement_type_id ?? undefined,
     etats: (row.etats as EtatEquipement[] | null) ?? undefined,
     plaqueChampCle: row.plaque_champ_cle ?? undefined,
@@ -312,7 +314,25 @@ function mapRegleApe(row: {
 
 export async function getReglesApe(): Promise<RegleApe[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("regles_ape").select("*");
+  const { data, error } = await supabase.from("regles_ape").select("*").order("created_at");
   if (error) throw new Error(error.message);
   return (data ?? []).map(mapRegleApe);
+}
+
+export async function getRegleApe(id: string): Promise<RegleApe | undefined> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("regles_ape").select("*").eq("id", id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? mapRegleApe(data) : undefined;
+}
+
+export async function getCurrentUserRole(): Promise<string | undefined> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return undefined;
+  const { data, error } = await supabase.from("app_users").select("role").eq("id", user.id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data?.role ?? undefined;
 }
