@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ImportExcelPanel } from "@/components/ImportExcelPanel";
 import type {
   Client,
   Contrat,
@@ -59,6 +60,12 @@ export function PreparationScreen({
 
   function removeItem(id: string) {
     setItems((prev) => prev.filter((it) => it.id !== id));
+    setDirty(true);
+  }
+
+  function importItems(newItems: ContratEquipement[]) {
+    if (newItems.length === 0) return;
+    setItems((prev) => [...prev, ...newItems]);
     setDirty(true);
   }
 
@@ -161,6 +168,14 @@ export function PreparationScreen({
 
         <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="mb-3 text-sm font-semibold text-slate-900">Équipements du contrat</h2>
+          <div className="mb-4">
+            <ImportExcelPanel
+              contratId={contrat.id}
+              lotsTechniques={lotsTechniques}
+              equipementTypes={equipementTypes}
+              onImport={importItems}
+            />
+          </div>
           {items.length === 0 ? (
             <p className="rounded-md border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">
               Aucun équipement pour l&apos;instant. Ajoute-en depuis le référentiel à gauche.
