@@ -6,6 +6,8 @@ import type {
   EquipementReleve,
   EquipementType,
   LotTechnique,
+  Photo,
+  PhotoType,
   PriseEnCharge,
 } from "./types";
 
@@ -302,5 +304,89 @@ export async function terminerPriseEnCharge(id: string): Promise<void> {
     .from("prises_en_charge")
     .update({ statut: "terminee", date_realisation: new Date().toISOString().slice(0, 10) })
     .eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+function mapPhotoRow(row: {
+  id: string;
+  equipement_releve_id: string;
+  storage_path: string;
+  type: PhotoType;
+}): Omit<Photo, "url"> {
+  return {
+    id: row.id,
+    equipementReleveId: row.equipement_releve_id,
+    storagePath: row.storage_path,
+    type: row.type,
+  };
+}
+
+export async function getPhotos(equipementReleveId: string): Promise<Photo[]> {
+  const { data, error } = await supabase
+    .from("photos")
+    .select("*")
+    .eq("equipement_releve_id", equipementReleveId)
+    .order("taken_at");
+  if (error) throw new Error(error.message);
+  const rows = data ?? [];
+  if (rows.length === 0) return [];
+
+  const paths = rows.map((r) => r.storage_path as string);
+  const { data: signedUrls, error: signError } = await supabase.storage
+    .from("photos")
+    .createSignedUrls(paths, 60 * 60);
+  if (signError) throw new Error(signError.message);
+  const urlByPath = new Map((signedUrls ?? []).map((s) => [s.path, s.signedUrl]));
+
+  return rows.map((row) => ({
+    ...mapPhotoRow(row),
+    url: urlByPath.get(row.storage_path) ?? "",
+  }));
+}
+
+export async function uploadPhoto(
+  equipementReleveId: string,
+  type: PhotoType,
+  localUri: string,
+): Promise<Photo> {
+  const orgId = await getCurrentOrgId();
+  const { data: userData } = await supabase.auth.getUser();
+
+  const extensionMatch = /\.(\w+)$/.exec(localUri);
+  const extension = (extensionMatch?.[1] ?? "jpg").toLowerCase();
+  const contentType = extension === "png" ? "image/png" : "image/jpeg";
+  const storagePath = `${orgId}/${equipementReleveId}/${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}.${extension}`;
+
+  const response = await fetch(localUri);
+  const arrayBuffer = await response.arrayBuffer();
+
+  const { error: uploadError } = await supabase.storage
+    .from("photos")
+    .upload(storagePath, arrayBuffer, { contentType });
+  if (uploadError) throw new Error(uploadError.message);
+
+  const { data, error } = await supabase
+    .from("photos")
+    .insert({
+      org_id: orgId,
+      equipement_releve_id: equipementReleveId,
+      storage_path: storagePath,
+      type,
+      created_by: userData.user?.id,
+    })
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+
+  const { data: signed } = await supabase.storage.from("photos").createSignedUrl(storagePath, 60 * 60);
+  return { ...mapPhotoRow(data), url: signed?.signedUrl ?? "" };
+}
+
+export async function deletePhoto(photo: Photo): Promise<void> {
+  const { error: storageError } = await supabase.storage.from("photos").remove([photo.storagePath]);
+  if (storageError) throw new Error(storageError.message);
+  const { error } = await supabase.from("photos").delete().eq("id", photo.id);
   if (error) throw new Error(error.message);
 }

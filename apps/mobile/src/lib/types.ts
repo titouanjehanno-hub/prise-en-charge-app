@@ -77,3 +77,13 @@ export interface EquipementReleve {
   plaqueSignaletique: Record<string, string>;
   commentaire?: string;
 }
+
+export type PhotoType = "generale" | "plaque_signaletique" | "defaut";
+
+export interface Photo {
+  id: string;
+  equipementReleveId: string;
+  storagePath: string;
+  type: PhotoType;
+  url: string;
+}

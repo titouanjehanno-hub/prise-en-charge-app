@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { PhotoGallery } from "@/components/photo-gallery";
 import { ProtectedScreen } from "@/components/protected-screen";
 import {
   getContratEquipement,
@@ -82,21 +83,27 @@ function EquipementFormContent() {
     setPlaqueValues((prev) => ({ ...prev, [key]: value }));
   }
 
+  async function persist(): Promise<string> {
+    const saved = await saveEquipementReleve({
+      id: existingReleveId,
+      priseEnChargeId,
+      contratEquipementId,
+      equipementTypeId,
+      estHorsContrat,
+      designation,
+      localisation,
+      etat,
+      plaqueSignaletique: plaqueValues,
+      commentaire,
+    });
+    setExistingReleveId(saved.id);
+    return saved.id;
+  }
+
   async function handleSave() {
     setIsSaving(true);
     try {
-      await saveEquipementReleve({
-        id: existingReleveId,
-        priseEnChargeId,
-        contratEquipementId,
-        equipementTypeId,
-        estHorsContrat,
-        designation,
-        localisation,
-        etat,
-        plaqueSignaletique: plaqueValues,
-        commentaire,
-      });
+      await persist();
       router.back();
     } catch {
       Alert.alert("Erreur", "Impossible d'enregistrer cet équipement.");
@@ -141,6 +148,9 @@ function EquipementFormContent() {
           </Pressable>
         ))}
       </View>
+
+      <Text style={styles.sectionLabel}>Photos</Text>
+      <PhotoGallery equipementReleveId={existingReleveId} onNeedsSave={persist} />
 
       {(type?.plaqueSignaletiqueSchema.length ?? 0) > 0 && (
         <>
