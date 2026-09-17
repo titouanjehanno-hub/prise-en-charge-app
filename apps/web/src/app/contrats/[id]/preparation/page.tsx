@@ -7,15 +7,16 @@ export default async function PreparationPage(
 ) {
   const { id } = await props.params;
 
-  const contrat = getContrat(id);
+  const contrat = await getContrat(id);
   if (!contrat) notFound();
 
-  const client = getClient(contrat.clientId);
-  const site = getSite(contrat.siteId);
+  const [client, site, { lotsTechniques, equipementTypes }, initialContratEquipements] = await Promise.all([
+    getClient(contrat.clientId),
+    getSite(contrat.siteId),
+    getReferentiel(),
+    getContratEquipements(contrat.id),
+  ]);
   if (!client || !site) notFound();
-
-  const { lotsTechniques, equipementTypes } = getReferentiel();
-  const initialContratEquipements = getContratEquipements(contrat.id);
 
   return (
     <PreparationScreen

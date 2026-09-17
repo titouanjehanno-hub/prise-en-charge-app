@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import type { ContratEquipement, EquipementType, LotTechnique } from "./types";
+import type { EquipementType, LotTechnique, NewContratEquipementInput } from "./types";
 
 const HEADERS = [
   "Code type d'équipement",
@@ -85,16 +85,11 @@ export async function parseContratEquipementsFile(
   });
 }
 
-export function toContratEquipement(
-  row: ImportPreviewRow,
-  contratId: string,
-): ContratEquipement {
+export function toNewEquipementInput(row: ImportPreviewRow): NewContratEquipementInput {
   if (!row.matchedType) {
     throw new Error("Impossible de convertir une ligne sans type d'équipement reconnu");
   }
   return {
-    id: crypto.randomUUID(),
-    contratId,
     equipementTypeId: row.matchedType.id,
     designation: row.designation || row.matchedType.name,
     localisationPrevue: row.localisationPrevue || undefined,

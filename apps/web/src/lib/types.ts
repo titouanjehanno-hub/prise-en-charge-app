@@ -55,3 +55,12 @@ export interface ContratEquipement {
   referenceContractuelle?: string;
   notes?: string;
 }
+
+export interface NewContratEquipementInput {
+  equipementTypeId: string;
+  designation?: string;
+  localisationPrevue?: string;
+  quantite: number;
+  referenceContractuelle?: string;
+  notes?: string;
+}

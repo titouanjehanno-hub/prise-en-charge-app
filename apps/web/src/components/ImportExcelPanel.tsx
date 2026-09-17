@@ -4,16 +4,15 @@ import { useRef, useState } from "react";
 import {
   downloadImportTemplate,
   parseContratEquipementsFile,
-  toContratEquipement,
+  toNewEquipementInput,
   type ImportPreviewRow,
 } from "@/lib/excel-import";
-import type { ContratEquipement, EquipementType, LotTechnique } from "@/lib/types";
+import type { EquipementType, LotTechnique, NewContratEquipementInput } from "@/lib/types";
 
 interface ImportExcelPanelProps {
-  contratId: string;
   lotsTechniques: LotTechnique[];
   equipementTypes: EquipementType[];
-  onImport: (items: ContratEquipement[]) => void;
+  onImport: (items: NewContratEquipementInput[]) => void | Promise<void>;
 }
 
 const STATUS_LABEL: Record<ImportPreviewRow["status"], string> = {
@@ -23,7 +22,6 @@ const STATUS_LABEL: Record<ImportPreviewRow["status"], string> = {
 };
 
 export function ImportExcelPanel({
-  contratId,
   lotsTechniques,
   equipementTypes,
   onImport,
@@ -32,6 +30,7 @@ export function ImportExcelPanel({
   const [rows, setRows] = useState<ImportPreviewRow[] | null>(null);
   const [fileName, setFileName] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   const okRows = rows?.filter((r) => r.status === "ok") ?? [];
   const errorRows = rows?.filter((r) => r.status !== "ok") ?? [];
@@ -56,12 +55,19 @@ export function ImportExcelPanel({
     }
   }
 
-  function confirmImport() {
+  async function confirmImport() {
     if (!rows) return;
-    const items = okRows.map((row) => toContratEquipement(row, contratId));
-    onImport(items);
-    setRows(null);
-    setFileName("");
+    setIsImporting(true);
+    try {
+      const items = okRows.map(toNewEquipementInput);
+      await onImport(items);
+      setRows(null);
+      setFileName("");
+    } catch {
+      setError("L'import a échoué côté serveur. Réessaie.");
+    } finally {
+      setIsImporting(false);
+    }
   }
 
   function cancelImport() {
@@ -120,10 +126,10 @@ export function ImportExcelPanel({
               <button
                 type="button"
                 onClick={confirmImport}
-                disabled={okRows.length === 0}
+                disabled={okRows.length === 0 || isImporting}
                 className="rounded bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
-                Confirmer l&apos;import ({okRows.length})
+                {isImporting ? "Import..." : `Confirmer l'import (${okRows.length})`}
               </button>
             </div>
           </div>

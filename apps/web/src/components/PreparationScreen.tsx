@@ -1,6 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import {
+  addContratEquipement,
+  bulkAddContratEquipements,
+  removeContratEquipement,
+  updateContratEquipement,
+} from "@/app/contrats/[id]/preparation/actions";
 import { ImportExcelPanel } from "@/components/ImportExcelPanel";
 import type {
   Client,
@@ -8,6 +14,7 @@ import type {
   ContratEquipement,
   EquipementType,
   LotTechnique,
+  NewContratEquipementInput,
   Site,
 } from "@/lib/types";
 
@@ -32,41 +39,59 @@ export function PreparationScreen({
   const [openLots, setOpenLots] = useState<Record<string, boolean>>(
     Object.fromEntries(lotsTechniques.map((lot) => [lot.id, true])),
   );
-  const [dirty, setDirty] = useState(false);
+  const [pendingTypeId, setPendingTypeId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const equipementTypeById = useMemo(
     () => new Map(equipementTypes.map((t) => [t.id, t])),
     [equipementTypes],
   );
 
-  function addItem(type: EquipementType) {
-    const newItem: ContratEquipement = {
-      id: crypto.randomUUID(),
-      contratId: contrat.id,
-      equipementTypeId: type.id,
-      designation: type.name,
-      localisationPrevue: "",
-      quantite: 1,
-      referenceContractuelle: "",
-    };
-    setItems((prev) => [...prev, newItem]);
-    setDirty(true);
+  async function addItem(type: EquipementType) {
+    setPendingTypeId(type.id);
+    setErrorMessage(null);
+    try {
+      const created = await addContratEquipement(contrat.id, type.id, type.name);
+      setItems((prev) => [...prev, created]);
+    } catch {
+      setErrorMessage("Impossible d'ajouter cet équipement. Réessaie.");
+    } finally {
+      setPendingTypeId(null);
+    }
   }
 
-  function updateItem(id: string, patch: Partial<ContratEquipement>) {
+  function updateLocal(id: string, patch: Partial<ContratEquipement>) {
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
-    setDirty(true);
   }
 
-  function removeItem(id: string) {
+  async function commitUpdate(id: string, current: ContratEquipement) {
+    try {
+      await updateContratEquipement(id, {
+        designation: current.designation,
+        localisationPrevue: current.localisationPrevue,
+        quantite: current.quantite,
+        referenceContractuelle: current.referenceContractuelle,
+      });
+    } catch {
+      setErrorMessage("Une modification n'a pas pu être enregistrée. Recharge la page.");
+    }
+  }
+
+  async function removeItem(id: string) {
+    const previous = items;
     setItems((prev) => prev.filter((it) => it.id !== id));
-    setDirty(true);
+    try {
+      await removeContratEquipement(id);
+    } catch {
+      setErrorMessage("Impossible de supprimer cet équipement. Réessaie.");
+      setItems(previous);
+    }
   }
 
-  function importItems(newItems: ContratEquipement[]) {
-    if (newItems.length === 0) return;
-    setItems((prev) => [...prev, ...newItems]);
-    setDirty(true);
+  async function importItems(inputs: NewContratEquipementInput[]) {
+    if (inputs.length === 0) return;
+    const created = await bulkAddContratEquipements(contrat.id, inputs);
+    setItems((prev) => [...prev, ...created]);
   }
 
   function toggleLot(lotId: string) {
@@ -102,24 +127,15 @@ export function PreparationScreen({
             </p>
             {site.adresse && <p className="text-sm text-slate-400">{site.adresse}</p>}
           </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right text-sm text-slate-500">
-              <p>{items.length} équipement(s) · {totalQuantite} unité(s)</p>
-              <p>{lotsCouverts} lot(s) technique(s) couvert(s)</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setDirty(false)}
-              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300"
-              disabled={!dirty}
-            >
-              Enregistrer
-            </button>
+          <div className="text-right text-sm text-slate-500">
+            <p>{items.length} équipement(s) · {totalQuantite} unité(s)</p>
+            <p>{lotsCouverts} lot(s) technique(s) couvert(s)</p>
+            <p className="mt-1 text-xs text-slate-400">Enregistrement automatique</p>
           </div>
         </div>
-        {dirty && (
-          <p className="mt-3 text-xs text-amber-600">
-            Modifications non enregistrées — la sauvegarde vers la base sera branchée avec Supabase.
+        {errorMessage && (
+          <p className="mt-3 rounded-md border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
+            {errorMessage}
           </p>
         )}
       </header>
@@ -152,9 +168,10 @@ export function PreparationScreen({
                           <button
                             type="button"
                             onClick={() => addItem(type)}
-                            className="rounded border border-indigo-200 px-2 py-0.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50"
+                            disabled={pendingTypeId === type.id}
+                            className="rounded border border-indigo-200 px-2 py-0.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            + Ajouter
+                            {pendingTypeId === type.id ? "..." : "+ Ajouter"}
                           </button>
                         </li>
                       ))}
@@ -170,7 +187,6 @@ export function PreparationScreen({
           <h2 className="mb-3 text-sm font-semibold text-slate-900">Équipements du contrat</h2>
           <div className="mb-4">
             <ImportExcelPanel
-              contratId={contrat.id}
               lotsTechniques={lotsTechniques}
               equipementTypes={equipementTypes}
               onImport={importItems}
@@ -213,14 +229,16 @@ export function PreparationScreen({
                               <td className="px-3 py-2">
                                 <input
                                   value={item.designation ?? ""}
-                                  onChange={(e) => updateItem(item.id, { designation: e.target.value })}
+                                  onChange={(e) => updateLocal(item.id, { designation: e.target.value })}
+                                  onBlur={() => commitUpdate(item.id, item)}
                                   className="w-full rounded border border-transparent bg-transparent px-2 py-1 hover:border-slate-200 focus:border-indigo-300 focus:outline-none"
                                 />
                               </td>
                               <td className="px-3 py-2">
                                 <input
                                   value={item.localisationPrevue ?? ""}
-                                  onChange={(e) => updateItem(item.id, { localisationPrevue: e.target.value })}
+                                  onChange={(e) => updateLocal(item.id, { localisationPrevue: e.target.value })}
+                                  onBlur={() => commitUpdate(item.id, item)}
                                   placeholder="ex : Sous-sol - Local technique"
                                   className="w-full rounded border border-transparent bg-transparent px-2 py-1 placeholder:text-slate-300 hover:border-slate-200 focus:border-indigo-300 focus:outline-none"
                                 />
@@ -231,15 +249,17 @@ export function PreparationScreen({
                                   min={1}
                                   value={item.quantite}
                                   onChange={(e) =>
-                                    updateItem(item.id, { quantite: Math.max(1, Number(e.target.value) || 1) })
+                                    updateLocal(item.id, { quantite: Math.max(1, Number(e.target.value) || 1) })
                                   }
+                                  onBlur={() => commitUpdate(item.id, item)}
                                   className="w-16 rounded border border-transparent bg-transparent px-2 py-1 hover:border-slate-200 focus:border-indigo-300 focus:outline-none"
                                 />
                               </td>
                               <td className="px-3 py-2">
                                 <input
                                   value={item.referenceContractuelle ?? ""}
-                                  onChange={(e) => updateItem(item.id, { referenceContractuelle: e.target.value })}
+                                  onChange={(e) => updateLocal(item.id, { referenceContractuelle: e.target.value })}
+                                  onBlur={() => commitUpdate(item.id, item)}
                                   placeholder="ex : LOT-CVC-01"
                                   className="w-full rounded border border-transparent bg-transparent px-2 py-1 placeholder:text-slate-300 hover:border-slate-200 focus:border-indigo-300 focus:outline-none"
                                 />
