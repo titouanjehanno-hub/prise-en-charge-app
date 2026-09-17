@@ -39,7 +39,8 @@
           "photosPermission": "Permet de choisir une photo d'équipement depuis la galerie.",
           "cameraPermission": "Permet de prendre une photo d'équipement ou de plaque signalétique."
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,

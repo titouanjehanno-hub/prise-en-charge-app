@@ -16,6 +16,7 @@ import { ProtectedScreen } from "@/components/protected-screen";
 import {
   addActionApe,
   deleteActionApe,
+  ensurePriseEnChargeCached,
   getActionsApeGenerales,
   getContrat,
   getContratEquipements,
@@ -105,6 +106,13 @@ function PriseEnChargeScreenContent() {
       setError(null);
       const priseEnCharge = await getPriseEnCharge(id);
       if (!priseEnCharge) throw new Error("Prise en charge introuvable.");
+      const disponible = await ensurePriseEnChargeCached(id, priseEnCharge.contratId);
+      if (!disponible) {
+        setError(
+          "Cette prise en charge n'a pas encore été téléchargée sur cet appareil. Connecte-toi à internet une première fois pour y accéder.",
+        );
+        return;
+      }
       const [contrat, { lotsTechniques, equipementTypes }, contratEquipements, equipementsReleves, actionsApeGenerales] =
         await Promise.all([
           getContrat(priseEnCharge.contratId),
