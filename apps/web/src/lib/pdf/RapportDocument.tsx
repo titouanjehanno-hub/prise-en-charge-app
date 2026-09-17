@@ -100,6 +100,11 @@ function EquipementLineView({ ligne }: { ligne: EquipementLigne }) {
         )}
       </View>
       {ligne.commentaire && <Text style={styles.lineComment}>{ligne.commentaire}</Text>}
+      {ligne.plaque.length > 0 && (
+        <Text style={styles.lineComment}>
+          {ligne.plaque.map((c) => `${c.label} : ${c.value}${c.unit ? ` ${c.unit}` : ""}`).join("  ·  ")}
+        </Text>
+      )}
       {ligne.photos.length > 0 && (
         <View style={styles.photosRow}>
           {ligne.photos.slice(0, 3).map((photo) => (

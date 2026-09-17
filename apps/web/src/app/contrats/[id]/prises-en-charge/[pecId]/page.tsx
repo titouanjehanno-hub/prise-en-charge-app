@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { AnalyseSynthese } from "@/components/AnalyseSynthese";
+import { EquipementLigneCard } from "@/components/EquipementLigneCard";
 import { PropositionsIngenieur } from "@/components/PropositionsIngenieur";
-import { getRapportAnalyse, type EquipementLigne } from "@/lib/rapport";
+import { getRapportAnalyse } from "@/lib/rapport";
 import type { PrioriteRegle } from "@/lib/types";
 import { validerPriseEnCharge } from "./actions";
 
@@ -11,22 +12,6 @@ const STATUT_LABEL: Record<string, string> = {
   en_pause: "En pause",
   terminee: "Terminée",
   validee: "Validée",
-};
-
-const ETAT_LABEL: Record<string, string> = {
-  bon: "Bon",
-  moyen: "Moyen",
-  mauvais: "Mauvais",
-  hors_service: "Hors service",
-  non_trouve: "Non trouvé",
-};
-
-const ETAT_COLOR: Record<string, string> = {
-  bon: "text-emerald-700 bg-emerald-50",
-  moyen: "text-amber-700 bg-amber-50",
-  mauvais: "text-red-700 bg-red-50",
-  hors_service: "text-red-700 bg-red-50",
-  non_trouve: "text-slate-600 bg-slate-100",
 };
 
 const PRIORITE_LABEL: Record<PrioriteRegle, string> = {
@@ -46,50 +31,6 @@ const PRIORITE_BORDER: Record<PrioriteRegle, string> = {
   a_prevoir: "border-amber-200 bg-amber-50/60",
   surveiller: "border-slate-200 bg-slate-50",
 };
-
-function EquipementLine({ ligne }: { ligne: EquipementLigne }) {
-  return (
-    <div className="rounded-md border border-slate-100 bg-white p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-medium text-slate-800">{ligne.title}</p>
-            {ligne.reglementaire && (
-              <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-blue-700">
-                Réglementaire
-              </span>
-            )}
-            {ligne.attention && (
-              <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-red-700">
-                Attention
-              </span>
-            )}
-          </div>
-          {ligne.subtitle && <p className="text-xs text-slate-400">{ligne.subtitle}</p>}
-        </div>
-        {ligne.etat && (
-          <span className={`whitespace-nowrap rounded px-2 py-1 text-xs font-medium ${ETAT_COLOR[ligne.etat] ?? "bg-slate-100 text-slate-600"}`}>
-            {ETAT_LABEL[ligne.etat] ?? ligne.etat}
-          </span>
-        )}
-      </div>
-      {ligne.commentaire && <p className="mt-2 text-xs text-slate-500">{ligne.commentaire}</p>}
-      {ligne.photos.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          {ligne.photos.map((photo) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={photo.id}
-              src={photo.url}
-              alt=""
-              className="h-16 w-16 rounded-md border border-slate-200 object-cover"
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function StatCard({ label, value, color }: { label: string; value: number; color?: string }) {
   return (
@@ -280,7 +221,7 @@ export default async function AnalysePage(
           </p>
           <div className="flex flex-col gap-2">
             {manquants.map((ligne) => (
-              <EquipementLine key={ligne.id} ligne={ligne} />
+              <EquipementLigneCard key={ligne.id} ligne={ligne} />
             ))}
           </div>
         </section>
@@ -297,7 +238,7 @@ export default async function AnalysePage(
           </p>
           <div className="flex flex-col gap-2">
             {nonTrouves.map((ligne) => (
-              <EquipementLine key={ligne.id} ligne={ligne} />
+              <EquipementLigneCard key={ligne.id} ligne={ligne} />
             ))}
           </div>
         </section>
@@ -312,7 +253,7 @@ export default async function AnalysePage(
           </p>
           <div className="flex flex-col gap-2">
             {degrades.map((ligne) => (
-              <EquipementLine key={ligne.id} ligne={ligne} />
+              <EquipementLigneCard key={ligne.id} ligne={ligne} />
             ))}
           </div>
         </section>
@@ -330,7 +271,7 @@ export default async function AnalysePage(
           </p>
           <div className="flex flex-col gap-2">
             {horsContrat.map((ligne) => (
-              <EquipementLine key={ligne.id} ligne={ligne} />
+              <EquipementLigneCard key={ligne.id} ligne={ligne} />
             ))}
           </div>
         </section>
@@ -341,7 +282,7 @@ export default async function AnalysePage(
           <h2 className="mb-2 text-sm font-semibold text-emerald-700">Équipements conformes — {conformes.length}</h2>
           <div className="flex flex-col gap-2">
             {conformes.map((ligne) => (
-              <EquipementLine key={ligne.id} ligne={ligne} />
+              <EquipementLigneCard key={ligne.id} ligne={ligne} />
             ))}
           </div>
         </section>

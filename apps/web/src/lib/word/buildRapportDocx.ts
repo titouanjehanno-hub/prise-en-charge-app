@@ -51,6 +51,10 @@ async function equipementLigneParagraphs(ligne: EquipementLigne): Promise<Paragr
   if (ligne.commentaire) {
     paragraphs.push(new Paragraph({ children: [new TextRun({ text: ligne.commentaire, size: 18 })] }));
   }
+  if (ligne.plaque.length > 0) {
+    const plaqueText = ligne.plaque.map((c) => `${c.label} : ${c.value}${c.unit ? ` ${c.unit}` : ""}`).join("  ·  ");
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: plaqueText, size: 18, italics: true })] }));
+  }
 
   for (const photo of ligne.photos.slice(0, 2)) {
     const data = await fetchImageData(photo.url);

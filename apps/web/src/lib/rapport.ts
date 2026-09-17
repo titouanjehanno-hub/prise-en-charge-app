@@ -27,6 +27,12 @@ import type {
   Site,
 } from "./types";
 
+export interface PlaqueChampValeur {
+  label: string;
+  value: string;
+  unit?: string;
+}
+
 export interface EquipementLigne {
   id: string;
   title: string;
@@ -36,6 +42,7 @@ export interface EquipementLigne {
   reglementaire: boolean;
   attention: boolean;
   photos: Photo[];
+  plaque: PlaqueChampValeur[];
 }
 
 export interface PlanActionItem {
@@ -126,6 +133,22 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
     return [ce.batiment, ce.etage, ce.local].filter(Boolean).join(" · ") || undefined;
   }
 
+  function resolvePlaque(
+    equipementTypeId: string,
+    valeurs?: Record<string, string>,
+  ): PlaqueChampValeur[] {
+    if (!valeurs) return [];
+    const type = equipementTypeById.get(equipementTypeId);
+    if (!type) return [];
+    const resolved: PlaqueChampValeur[] = [];
+    for (const champ of type.plaqueSignaletiqueSchema) {
+      const value = valeurs[champ.key];
+      if (value === undefined || value === null || value === "") continue;
+      resolved.push({ label: champ.label, value: String(value), unit: champ.unit });
+    }
+    return resolved;
+  }
+
   function toLigne(params: {
     id: string;
     title: string;
@@ -134,6 +157,7 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
     commentaire?: string;
     equipementTypeId: string;
     photos?: Photo[];
+    plaqueSignaletique?: Record<string, string>;
   }): EquipementLigne {
     const type = equipementTypeById.get(params.equipementTypeId);
     const reglementaire = type?.estReglementaire ?? false;
@@ -146,6 +170,7 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
       reglementaire,
       attention: reglementaire && (!params.etat || estDegradeOuAbsent(params.etat)),
       photos: params.photos ?? [],
+      plaque: resolvePlaque(params.equipementTypeId, params.plaqueSignaletique),
     };
   }
 
@@ -171,6 +196,7 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
           commentaire: releve.commentaire,
           equipementTypeId: ce.equipementTypeId,
           photos: photosByReleveId.get(releve.id),
+          plaqueSignaletique: releve.plaqueSignaletique,
         }),
       );
     } else if (releve.etat === "moyen" || releve.etat === "mauvais" || releve.etat === "hors_service") {
@@ -183,6 +209,7 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
           commentaire: releve.commentaire,
           equipementTypeId: ce.equipementTypeId,
           photos: photosByReleveId.get(releve.id),
+          plaqueSignaletique: releve.plaqueSignaletique,
         }),
       );
     } else if (releve.etat === "bon") {
@@ -195,6 +222,7 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
           commentaire: releve.commentaire,
           equipementTypeId: ce.equipementTypeId,
           photos: photosByReleveId.get(releve.id),
+          plaqueSignaletique: releve.plaqueSignaletique,
         }),
       );
     }
@@ -211,6 +239,7 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
       commentaire: releve.commentaire,
       equipementTypeId: releve.equipementTypeId,
       photos: photosByReleveId.get(releve.id),
+      plaqueSignaletique: releve.plaqueSignaletique,
     });
   });
   for (const releve of horsContratReleves) {
@@ -225,6 +254,7 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
           commentaire: releve.commentaire,
           equipementTypeId: releve.equipementTypeId,
           photos: photosByReleveId.get(releve.id),
+          plaqueSignaletique: releve.plaqueSignaletique,
         }),
       );
     }
