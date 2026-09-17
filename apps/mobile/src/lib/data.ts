@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import type {
+  ActionApe,
   Contrat,
   ContratEquipement,
   ContratListItem,
@@ -439,5 +440,70 @@ export async function deletePhoto(photo: Photo): Promise<void> {
   const { error: storageError } = await supabase.storage.from("photos").remove([photo.storagePath]);
   if (storageError) throw new Error(storageError.message);
   const { error } = await supabase.from("photos").delete().eq("id", photo.id);
+  if (error) throw new Error(error.message);
+}
+
+function mapActionApe(row: {
+  id: string;
+  prise_en_charge_id: string;
+  equipement_releve_id: string | null;
+  origine: ActionApe["origine"];
+  description: string;
+}): ActionApe {
+  return {
+    id: row.id,
+    priseEnChargeId: row.prise_en_charge_id,
+    equipementReleveId: row.equipement_releve_id ?? undefined,
+    origine: row.origine,
+    description: row.description,
+  };
+}
+
+export async function getActionsApeParEquipementReleve(equipementReleveId: string): Promise<ActionApe[]> {
+  const { data, error } = await supabase
+    .from("actions_ape")
+    .select("*")
+    .eq("equipement_releve_id", equipementReleveId)
+    .order("created_at");
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapActionApe);
+}
+
+export async function getActionsApeGenerales(priseEnChargeId: string): Promise<ActionApe[]> {
+  const { data, error } = await supabase
+    .from("actions_ape")
+    .select("*")
+    .eq("prise_en_charge_id", priseEnChargeId)
+    .is("equipement_releve_id", null)
+    .order("created_at");
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapActionApe);
+}
+
+export async function addActionApe(input: {
+  priseEnChargeId: string;
+  equipementReleveId?: string;
+  description: string;
+}): Promise<ActionApe> {
+  const orgId = await getCurrentOrgId();
+  const { data: userData } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from("actions_ape")
+    .insert({
+      org_id: orgId,
+      prise_en_charge_id: input.priseEnChargeId,
+      equipement_releve_id: input.equipementReleveId ?? null,
+      origine: "technicien",
+      description: input.description,
+      created_by: userData.user?.id,
+    })
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  return mapActionApe(data);
+}
+
+export async function deleteActionApe(id: string): Promise<void> {
+  const { error } = await supabase.from("actions_ape").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }

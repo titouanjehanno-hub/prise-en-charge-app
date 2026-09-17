@@ -23,3 +23,34 @@ export async function validerPriseEnCharge(pecId: string, contratId: string): Pr
   if (error) throw new Error(error.message);
   revalidatePath(`/contrats/${contratId}/prises-en-charge/${pecId}`);
 }
+
+export async function addPropositionIngenieur(
+  pecId: string,
+  description: string,
+): Promise<{ id: string; description: string }> {
+  const supabase = await createClient();
+  const { data: orgId, error: orgError } = await supabase.rpc("current_org_id");
+  if (orgError || !orgId) throw new Error("Organisation introuvable.");
+  const { data: userData } = await supabase.auth.getUser();
+
+  const { data, error } = await supabase
+    .from("actions_ape")
+    .insert({
+      org_id: orgId,
+      prise_en_charge_id: pecId,
+      equipement_releve_id: null,
+      origine: "ingenieur",
+      description: description.trim(),
+      created_by: userData.user?.id,
+    })
+    .select("id, description")
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function deleteActionApeManuelle(id: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("actions_ape").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}

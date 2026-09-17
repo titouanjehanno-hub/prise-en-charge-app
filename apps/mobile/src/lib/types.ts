@@ -88,3 +88,13 @@ export interface Photo {
   type: PhotoType;
   url: string;
 }
+
+export type OrigineActionApe = "technicien" | "ingenieur";
+
+export interface ActionApe {
+  id: string;
+  priseEnChargeId: string;
+  equipementReleveId?: string;
+  origine: OrigineActionApe;
+  description: string;
+}

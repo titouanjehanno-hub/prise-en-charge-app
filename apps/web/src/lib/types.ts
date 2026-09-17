@@ -112,6 +112,16 @@ export interface Photo {
   url: string;
 }
 
+export type OrigineActionApe = "technicien" | "ingenieur";
+
+export interface ActionApe {
+  id: string;
+  priseEnChargeId: string;
+  equipementReleveId?: string;
+  origine: OrigineActionApe;
+  description: string;
+}
+
 export interface RegleApe {
   id: string;
   orgId?: string;

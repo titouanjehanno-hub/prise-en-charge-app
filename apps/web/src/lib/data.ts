@@ -1,6 +1,7 @@
 // Couche d'accès aux données branchée sur Supabase (RLS = isolation par organisation).
 import { createClient } from "@/lib/supabase/server";
 import type {
+  ActionApe,
   Client,
   Contrat,
   ContratEquipement,
@@ -335,4 +336,31 @@ export async function getCurrentUserRole(): Promise<string | undefined> {
   const { data, error } = await supabase.from("app_users").select("role").eq("id", user.id).maybeSingle();
   if (error) throw new Error(error.message);
   return data?.role ?? undefined;
+}
+
+function mapActionApe(row: {
+  id: string;
+  prise_en_charge_id: string;
+  equipement_releve_id: string | null;
+  origine: ActionApe["origine"];
+  description: string;
+}): ActionApe {
+  return {
+    id: row.id,
+    priseEnChargeId: row.prise_en_charge_id,
+    equipementReleveId: row.equipement_releve_id ?? undefined,
+    origine: row.origine,
+    description: row.description,
+  };
+}
+
+export async function getActionsApePourPriseEnCharge(priseEnChargeId: string): Promise<ActionApe[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("actions_ape")
+    .select("*")
+    .eq("prise_en_charge_id", priseEnChargeId)
+    .order("created_at");
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapActionApe);
 }

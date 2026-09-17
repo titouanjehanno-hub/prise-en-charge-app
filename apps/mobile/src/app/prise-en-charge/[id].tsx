@@ -11,8 +11,12 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { ActionsApeList } from "@/components/actions-ape-list";
 import { ProtectedScreen } from "@/components/protected-screen";
 import {
+  addActionApe,
+  deleteActionApe,
+  getActionsApeGenerales,
   getContrat,
   getContratEquipements,
   getEquipementsReleves,
@@ -24,6 +28,7 @@ import {
 } from "@/lib/data";
 import { ETAT_COLOR, ETAT_LABEL, PEC_STATUT_COLOR, PEC_STATUT_LABEL } from "@/lib/status-labels";
 import type {
+  ActionApe,
   Contrat,
   ContratEquipement,
   EquipementReleve,
@@ -42,6 +47,7 @@ interface ScreenData {
   equipementTypes: EquipementType[];
   contratEquipements: ContratEquipement[];
   equipementsReleves: EquipementReleve[];
+  actionsApeGenerales: ActionApe[];
 }
 
 function StatusBadge({ etat }: { etat?: string }) {
@@ -99,15 +105,24 @@ function PriseEnChargeScreenContent() {
       setError(null);
       const priseEnCharge = await getPriseEnCharge(id);
       if (!priseEnCharge) throw new Error("Prise en charge introuvable.");
-      const [contrat, { lotsTechniques, equipementTypes }, contratEquipements, equipementsReleves] =
+      const [contrat, { lotsTechniques, equipementTypes }, contratEquipements, equipementsReleves, actionsApeGenerales] =
         await Promise.all([
           getContrat(priseEnCharge.contratId),
           getReferentiel(),
           getContratEquipements(priseEnCharge.contratId),
           getEquipementsReleves(id),
+          getActionsApeGenerales(id),
         ]);
       if (!contrat) throw new Error("Contrat introuvable.");
-      setData({ priseEnCharge, contrat, lotsTechniques, equipementTypes, contratEquipements, equipementsReleves });
+      setData({
+        priseEnCharge,
+        contrat,
+        lotsTechniques,
+        equipementTypes,
+        contratEquipements,
+        equipementsReleves,
+        actionsApeGenerales,
+      });
     } catch {
       setError("Impossible de charger la prise en charge.");
     }
@@ -198,6 +213,20 @@ function PriseEnChargeScreenContent() {
   const renseignes = data.contratEquipements.filter((ce) => releveByContratEquipementId.has(ce.id)).length;
   const statut = data.priseEnCharge.statut;
   const isClosed = statut === "terminee" || statut === "validee";
+
+  async function handleAddActionApeGenerale(description: string) {
+    const created = await addActionApe({ priseEnChargeId: id, description });
+    setData((prev) => (prev ? { ...prev, actionsApeGenerales: [...prev.actionsApeGenerales, created] } : prev));
+  }
+
+  async function handleDeleteActionApeGenerale(actionId: string) {
+    await deleteActionApe(actionId);
+    setData((prev) =>
+      prev
+        ? { ...prev, actionsApeGenerales: prev.actionsApeGenerales.filter((a) => a.id !== actionId) }
+        : prev,
+    );
+  }
 
   async function handleTerminer() {
     setIsFinishing(true);
@@ -376,6 +405,16 @@ function PriseEnChargeScreenContent() {
               );
             })
           )}
+
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionHeader}>Actions de performance énergétique (manuel)</Text>
+          </View>
+          <ActionsApeList
+            items={data.actionsApeGenerales}
+            onAdd={handleAddActionApeGenerale}
+            onDelete={handleDeleteActionApeGenerale}
+            placeholder="ex : Gestion de la consigne sur la GTB"
+          />
 
           {!isClosed && (
             <View style={styles.actionsRow}>

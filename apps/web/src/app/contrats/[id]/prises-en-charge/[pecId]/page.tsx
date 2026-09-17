@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { AnalyseSynthese } from "@/components/AnalyseSynthese";
+import { PropositionsIngenieur } from "@/components/PropositionsIngenieur";
 import {
+  getActionsApePourPriseEnCharge,
   getClient,
   getContrat,
   getContratEquipements,
@@ -104,14 +106,16 @@ export default async function AnalysePage(
   const [contrat, priseEnCharge] = await Promise.all([getContrat(id), getPriseEnCharge(pecId)]);
   if (!contrat || !priseEnCharge || priseEnCharge.contratId !== id) notFound();
 
-  const [client, site, { equipementTypes }, contratEquipements, equipementsReleves, reglesApe] = await Promise.all([
-    getClient(contrat.clientId),
-    getSite(contrat.siteId),
-    getReferentiel(),
-    getContratEquipements(id),
-    getEquipementsReleves(pecId),
-    getReglesApe(),
-  ]);
+  const [client, site, { equipementTypes }, contratEquipements, equipementsReleves, reglesApe, actionsApe] =
+    await Promise.all([
+      getClient(contrat.clientId),
+      getSite(contrat.siteId),
+      getReferentiel(),
+      getContratEquipements(id),
+      getEquipementsReleves(pecId),
+      getReglesApe(),
+      getActionsApePourPriseEnCharge(pecId),
+    ]);
   if (!client || !site) notFound();
 
   const photosByReleveId = await getPhotosPourEquipementsReleves(equipementsReleves.map((r) => r.id));
@@ -181,6 +185,19 @@ export default async function AnalysePage(
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
 
+  const equipementReleveById = new Map(equipementsReleves.map((r) => [r.id, r]));
+  function titreDepuisReleveId(equipementReleveId?: string): string | undefined {
+    if (!equipementReleveId) return undefined;
+    const releve = equipementReleveById.get(equipementReleveId);
+    if (!releve) return undefined;
+    const ce = releve.contratEquipementId ? contratEquipementById.get(releve.contratEquipementId) : undefined;
+    const type = equipementTypeById.get(releve.equipementTypeId);
+    return releve.designation || ce?.designation || type?.name;
+  }
+
+  const remarquesTechnicien = actionsApe.filter((a) => a.origine === "technicien");
+  const propositionsIngenieur = actionsApe.filter((a) => a.origine === "ingenieur");
+
   return (
     <div className="flex flex-col gap-6">
       <header className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -246,6 +263,34 @@ export default async function AnalysePage(
           </div>
         </section>
       )}
+
+      {remarquesTechnicien.length > 0 && (
+        <section>
+          <h2 className="mb-2 text-sm font-semibold text-teal-700">
+            Remarques du technicien (terrain) — {remarquesTechnicien.length}
+          </h2>
+          <div className="flex flex-col gap-2">
+            {remarquesTechnicien.map((remarque) => (
+              <div key={remarque.id} className="rounded-md border border-teal-100 bg-teal-50/40 p-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-teal-600">
+                  {titreDepuisReleveId(remarque.equipementReleveId) ?? "Remarque générale"}
+                </p>
+                <p className="mt-1 text-sm text-slate-700">{remarque.description}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-3 text-sm font-semibold text-slate-900">
+          Propositions de l&apos;ingénieur efficacité énergétique
+        </h2>
+        <PropositionsIngenieur
+          pecId={pecId}
+          initial={propositionsIngenieur.map((p) => ({ id: p.id, description: p.description }))}
+        />
+      </section>
 
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="mb-3 text-sm font-semibold text-slate-900">Synthèse</h2>

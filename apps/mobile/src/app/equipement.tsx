@@ -10,15 +10,19 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { ActionsApeList } from "@/components/actions-ape-list";
 import { PhotoGallery } from "@/components/photo-gallery";
 import { ProtectedScreen } from "@/components/protected-screen";
 import {
+  addActionApe,
+  deleteActionApe,
+  getActionsApeParEquipementReleve,
   getContratEquipement,
   getEquipementReleve,
   getEquipementType,
   saveEquipementReleve,
 } from "@/lib/data";
-import type { EquipementType, EtatEquipement } from "@/lib/types";
+import type { ActionApe, EquipementType, EtatEquipement } from "@/lib/types";
 
 const ETATS: { value: EtatEquipement; label: string }[] = [
   { value: "bon", label: "Bon" },
@@ -44,6 +48,7 @@ function EquipementFormContent() {
   const [etat, setEtat] = useState<EtatEquipement | undefined>(undefined);
   const [plaqueValues, setPlaqueValues] = useState<Record<string, string>>({});
   const [commentaire, setCommentaire] = useState("");
+  const [actionsApe, setActionsApe] = useState<ActionApe[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -62,6 +67,7 @@ function EquipementFormContent() {
           setEtat(releve.etat);
           setPlaqueValues(releve.plaqueSignaletique ?? {});
           setCommentaire(releve.commentaire ?? "");
+          setActionsApe(await getActionsApeParEquipementReleve(releve.id));
         }
       } else if (contratEquipementId) {
         const ce = await getContratEquipement(contratEquipementId);
@@ -98,6 +104,17 @@ function EquipementFormContent() {
     });
     setExistingReleveId(saved.id);
     return saved.id;
+  }
+
+  async function handleAddActionApe(description: string) {
+    const releveId = existingReleveId ?? (await persist());
+    const created = await addActionApe({ priseEnChargeId, equipementReleveId: releveId, description });
+    setActionsApe((prev) => [...prev, created]);
+  }
+
+  async function handleDeleteActionApe(id: string) {
+    await deleteActionApe(id);
+    setActionsApe((prev) => prev.filter((a) => a.id !== id));
   }
 
   async function handleSave() {
@@ -202,6 +219,9 @@ function EquipementFormContent() {
         multiline
         numberOfLines={3}
       />
+
+      <Text style={styles.sectionLabel}>Actions de performance énergétique (manuel)</Text>
+      <ActionsApeList items={actionsApe} onAdd={handleAddActionApe} onDelete={handleDeleteActionApe} />
 
       <Pressable style={[styles.saveButton, isSaving && styles.buttonDisabled]} onPress={handleSave} disabled={isSaving}>
         <Text style={styles.saveButtonText}>{isSaving ? "Enregistrement..." : "Enregistrer"}</Text>
