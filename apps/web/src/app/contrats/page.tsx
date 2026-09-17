@@ -41,12 +41,20 @@ export default async function ContratsPage() {
                     {contrat.dateDebut ?? "—"} → {contrat.dateFin ?? "—"}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/contrats/${contrat.id}/preparation`}
-                      className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
-                    >
-                      Préparer
-                    </Link>
+                    <div className="flex justify-end gap-2">
+                      <Link
+                        href={`/contrats/${contrat.id}/prises-en-charge`}
+                        className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      >
+                        Prises en charge
+                      </Link>
+                      <Link
+                        href={`/contrats/${contrat.id}/preparation`}
+                        className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
+                      >
+                        Préparer
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}
