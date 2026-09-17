@@ -198,7 +198,7 @@ export async function getOrCreatePriseEnCharge(contrat: Contrat): Promise<PriseE
     .select("*")
     .eq("contrat_id", contrat.id)
     .eq("technicien_id", userId)
-    .neq("statut", "terminee")
+    .in("statut", ["preparee", "en_cours", "en_pause"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -304,6 +304,16 @@ export async function terminerPriseEnCharge(id: string): Promise<void> {
     .from("prises_en_charge")
     .update({ statut: "terminee", date_realisation: new Date().toISOString().slice(0, 10) })
     .eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function mettreEnPausePriseEnCharge(id: string): Promise<void> {
+  const { error } = await supabase.from("prises_en_charge").update({ statut: "en_pause" }).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function reprendrePriseEnCharge(id: string): Promise<void> {
+  const { error } = await supabase.from("prises_en_charge").update({ statut: "en_cours" }).eq("id", id);
   if (error) throw new Error(error.message);
 }
 

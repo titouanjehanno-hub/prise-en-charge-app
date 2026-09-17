@@ -52,7 +52,7 @@ export interface ContratEquipement {
   notes?: string;
 }
 
-export type StatutPriseEnCharge = "preparee" | "en_cours" | "terminee" | "validee";
+export type StatutPriseEnCharge = "preparee" | "en_cours" | "en_pause" | "terminee" | "validee";
 
 export interface PriseEnCharge {
   id: string;

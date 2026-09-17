@@ -8,6 +8,8 @@ import {
   getEquipementsReleves,
   getPriseEnCharge,
   getReferentiel,
+  mettreEnPausePriseEnCharge,
+  reprendrePriseEnCharge,
   terminerPriseEnCharge,
 } from "@/lib/data";
 import type {
@@ -16,7 +18,24 @@ import type {
   EquipementReleve,
   EquipementType,
   LotTechnique,
+  PriseEnCharge,
 } from "@/lib/types";
+
+const PEC_STATUT_LABEL: Record<string, string> = {
+  preparee: "Préparée",
+  en_cours: "En cours",
+  en_pause: "En pause",
+  terminee: "Terminée",
+  validee: "Validée",
+};
+
+const PEC_STATUT_COLOR: Record<string, string> = {
+  preparee: "#64748b",
+  en_cours: "#16a34a",
+  en_pause: "#d97706",
+  terminee: "#334155",
+  validee: "#4f46e5",
+};
 
 const ETAT_LABEL: Record<string, string> = {
   bon: "Bon",
@@ -35,6 +54,7 @@ const ETAT_COLOR: Record<string, string> = {
 };
 
 interface ScreenData {
+  priseEnCharge: PriseEnCharge;
   contrat: Contrat;
   lotsTechniques: LotTechnique[];
   equipementTypes: EquipementType[];
@@ -65,6 +85,7 @@ function PriseEnChargeScreenContent() {
   const [data, setData] = useState<ScreenData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isFinishing, setIsFinishing] = useState(false);
+  const [isTogglingPause, setIsTogglingPause] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -79,7 +100,7 @@ function PriseEnChargeScreenContent() {
           getEquipementsReleves(id),
         ]);
       if (!contrat) throw new Error("Contrat introuvable.");
-      setData({ contrat, lotsTechniques, equipementTypes, contratEquipements, equipementsReleves });
+      setData({ priseEnCharge, contrat, lotsTechniques, equipementTypes, contratEquipements, equipementsReleves });
     } catch {
       setError("Impossible de charger la prise en charge.");
     }
@@ -141,9 +162,36 @@ function PriseEnChargeScreenContent() {
     }
   }
 
+  async function handleTogglePause() {
+    if (!data) return;
+    setIsTogglingPause(true);
+    try {
+      if (data.priseEnCharge.statut === "en_pause") {
+        await reprendrePriseEnCharge(id);
+      } else {
+        await mettreEnPausePriseEnCharge(id);
+      }
+      await load();
+    } catch {
+      Alert.alert("Erreur", "Impossible de changer le statut de la prise en charge.");
+    } finally {
+      setIsTogglingPause(false);
+    }
+  }
+
+  const statut = data.priseEnCharge.statut;
+  const isClosed = statut === "terminee" || statut === "validee";
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>{data.contrat.reference}</Text>
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>{data.contrat.reference}</Text>
+        <View style={[styles.badge, { backgroundColor: `${PEC_STATUT_COLOR[statut] ?? "#64748b"}1a` }]}>
+          <Text style={[styles.badgeText, { color: PEC_STATUT_COLOR[statut] ?? "#64748b" }]}>
+            {PEC_STATUT_LABEL[statut] ?? statut}
+          </Text>
+        </View>
+      </View>
       <Text style={styles.subtitle}>
         {renseignes} / {total} équipement(s) renseigné(s)
       </Text>
@@ -216,15 +264,26 @@ function PriseEnChargeScreenContent() {
         })
       )}
 
-      <Pressable
-        style={[styles.finishButton, isFinishing && styles.buttonDisabled]}
-        onPress={handleTerminer}
-        disabled={isFinishing}
-      >
-        <Text style={styles.finishButtonText}>
-          {isFinishing ? "..." : "Terminer la prise en charge"}
-        </Text>
-      </Pressable>
+      {!isClosed && (
+        <View style={styles.actionsRow}>
+          <Pressable
+            style={[styles.pauseButton, isTogglingPause && styles.buttonDisabled]}
+            onPress={handleTogglePause}
+            disabled={isTogglingPause}
+          >
+            <Text style={styles.pauseButtonText}>
+              {isTogglingPause ? "..." : statut === "en_pause" ? "Reprendre" : "Mettre en pause"}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.finishButton, isFinishing && styles.buttonDisabled]}
+            onPress={handleTerminer}
+            disabled={isFinishing}
+          >
+            <Text style={styles.finishButtonText}>{isFinishing ? "..." : "Terminer"}</Text>
+          </Pressable>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -240,6 +299,7 @@ export default function PriseEnChargeScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   container: { padding: 16, gap: 10, backgroundColor: "#f8fafc" },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   title: { fontSize: 20, fontWeight: "700", color: "#0f172a" },
   subtitle: { fontSize: 13, color: "#64748b", marginBottom: 8 },
   row: {
@@ -267,8 +327,19 @@ const styles = StyleSheet.create({
   sectionHeader: { fontSize: 13, fontWeight: "700", color: "#64748b", textTransform: "uppercase" },
   addLink: { fontSize: 13, color: "#4f46e5", fontWeight: "600" },
   emptyText: { color: "#94a3b8", fontSize: 13, fontStyle: "italic" },
+  actionsRow: { flexDirection: "row", gap: 10, marginTop: 20 },
+  pauseButton: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  pauseButtonText: { color: "#334155", fontWeight: "600", fontSize: 14 },
   finishButton: {
-    marginTop: 20,
+    flex: 1,
     backgroundColor: "#0f172a",
     borderRadius: 10,
     paddingVertical: 14,
