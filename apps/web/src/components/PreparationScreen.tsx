@@ -8,6 +8,7 @@ import {
   updateContratEquipement,
 } from "@/app/contrats/[id]/preparation/actions";
 import { ImportExcelPanel } from "@/components/ImportExcelPanel";
+import { SuggestInput } from "@/components/SuggestInput";
 import type {
   Client,
   Contrat,
@@ -220,22 +221,6 @@ export function PreparationScreen({
             </p>
           ) : (
             <div className="flex flex-col gap-6">
-              <datalist id="suggestions-batiment">
-                {suggestions.batiments.map((v) => (
-                  <option key={v} value={v} />
-                ))}
-              </datalist>
-              <datalist id="suggestions-etage">
-                {suggestions.etages.map((v) => (
-                  <option key={v} value={v} />
-                ))}
-              </datalist>
-              <datalist id="suggestions-local">
-                {suggestions.locaux.map((v) => (
-                  <option key={v} value={v} />
-                ))}
-              </datalist>
-
               {lotsTechniques
                 .filter((lot) => itemsByLot.has(lot.id))
                 .map((lot) => (
@@ -271,31 +256,31 @@ export function PreparationScreen({
                                 />
                               </td>
                               <td className="px-3 py-2">
-                                <input
-                                  list="suggestions-batiment"
+                                <SuggestInput
                                   value={item.batiment ?? ""}
-                                  onChange={(e) => updateLocal(item.id, { batiment: e.target.value })}
-                                  onBlur={() => commitUpdate(item.id, item)}
+                                  onChange={(v) => updateLocal(item.id, { batiment: v })}
+                                  onCommit={(v) => commitUpdate(item.id, { ...item, batiment: v })}
+                                  suggestions={suggestions.batiments}
                                   placeholder="ex : Bâtiment A"
                                   className="w-full rounded border border-transparent bg-transparent px-2 py-1 placeholder:text-slate-300 hover:border-slate-200 focus:border-indigo-300 focus:outline-none"
                                 />
                               </td>
                               <td className="px-3 py-2">
-                                <input
-                                  list="suggestions-etage"
+                                <SuggestInput
                                   value={item.etage ?? ""}
-                                  onChange={(e) => updateLocal(item.id, { etage: e.target.value })}
-                                  onBlur={() => commitUpdate(item.id, item)}
+                                  onChange={(v) => updateLocal(item.id, { etage: v })}
+                                  onCommit={(v) => commitUpdate(item.id, { ...item, etage: v })}
+                                  suggestions={suggestions.etages}
                                   placeholder="ex : R+2"
                                   className="w-full rounded border border-transparent bg-transparent px-2 py-1 placeholder:text-slate-300 hover:border-slate-200 focus:border-indigo-300 focus:outline-none"
                                 />
                               </td>
                               <td className="px-3 py-2">
-                                <input
-                                  list="suggestions-local"
+                                <SuggestInput
                                   value={item.local ?? ""}
-                                  onChange={(e) => updateLocal(item.id, { local: e.target.value })}
-                                  onBlur={() => commitUpdate(item.id, item)}
+                                  onChange={(v) => updateLocal(item.id, { local: v })}
+                                  onCommit={(v) => commitUpdate(item.id, { ...item, local: v })}
+                                  suggestions={suggestions.locaux}
                                   placeholder="ex : Local technique"
                                   className="w-full rounded border border-transparent bg-transparent px-2 py-1 placeholder:text-slate-300 hover:border-slate-200 focus:border-indigo-300 focus:outline-none"
                                 />
