@@ -223,7 +223,7 @@ export async function getPrisesEnChargePourContrat(contratId: string): Promise<P
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("prises_en_charge")
-    .select("*, app_users(full_name), equipements_releves(count)")
+    .select("*, app_users!technicien_id(full_name), equipements_releves(count)")
     .eq("contrat_id", contratId)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
@@ -237,7 +237,7 @@ export async function getPriseEnCharge(id: string): Promise<PriseEnCharge | unde
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("prises_en_charge")
-    .select("*, app_users(full_name)")
+    .select("*, app_users!technicien_id(full_name)")
     .eq("id", id)
     .maybeSingle();
   if (error) throw new Error(error.message);
