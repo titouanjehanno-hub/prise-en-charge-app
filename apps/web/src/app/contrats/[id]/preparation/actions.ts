@@ -35,19 +35,29 @@ export async function updateContratEquipement(
   id: string,
   patch: {
     designation?: string;
-    localisationPrevue?: string;
+    batiment?: string;
+    etage?: string;
+    local?: string;
     quantite?: number;
+    estEnsemble?: boolean;
     referenceContractuelle?: string;
+    numeroSerie?: string;
+    notes?: string;
   },
 ): Promise<void> {
   const supabase = await createClient();
   const dbPatch: Record<string, unknown> = {};
   if (patch.designation !== undefined) dbPatch.designation = patch.designation || null;
-  if (patch.localisationPrevue !== undefined) dbPatch.localisation_prevue = patch.localisationPrevue || null;
+  if (patch.batiment !== undefined) dbPatch.batiment = patch.batiment || null;
+  if (patch.etage !== undefined) dbPatch.etage = patch.etage || null;
+  if (patch.local !== undefined) dbPatch.local = patch.local || null;
   if (patch.quantite !== undefined) dbPatch.quantite = patch.quantite;
+  if (patch.estEnsemble !== undefined) dbPatch.est_ensemble = patch.estEnsemble;
   if (patch.referenceContractuelle !== undefined) {
     dbPatch.reference_contractuelle = patch.referenceContractuelle || null;
   }
+  if (patch.numeroSerie !== undefined) dbPatch.numero_serie = patch.numeroSerie || null;
+  if (patch.notes !== undefined) dbPatch.notes = patch.notes || null;
 
   const { error } = await supabase.from("contrat_equipements").update(dbPatch).eq("id", id);
   if (error) throw new Error(error.message);
@@ -73,9 +83,13 @@ export async function bulkAddContratEquipements(
     contrat_id: contratId,
     equipement_type_id: item.equipementTypeId,
     designation: item.designation || null,
-    localisation_prevue: item.localisationPrevue || null,
+    batiment: item.batiment || null,
+    etage: item.etage || null,
+    local: item.local || null,
     quantite: item.quantite,
+    est_ensemble: item.estEnsemble ?? false,
     reference_contractuelle: item.referenceContractuelle || null,
+    numero_serie: item.numeroSerie || null,
     notes: item.notes || null,
   }));
 

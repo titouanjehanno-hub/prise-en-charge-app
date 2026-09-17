@@ -68,13 +68,24 @@ export function PreparationScreen({
     try {
       await updateContratEquipement(id, {
         designation: current.designation,
-        localisationPrevue: current.localisationPrevue,
+        batiment: current.batiment,
+        etage: current.etage,
+        local: current.local,
         quantite: current.quantite,
+        estEnsemble: current.estEnsemble,
         referenceContractuelle: current.referenceContractuelle,
+        numeroSerie: current.numeroSerie,
+        notes: current.notes,
       });
     } catch {
       setErrorMessage("Une modification n'a pas pu être enregistrée. Recharge la page.");
     }
+  }
+
+  async function toggleEnsemble(item: ContratEquipement) {
+    const next = { ...item, estEnsemble: !item.estEnsemble };
+    updateLocal(item.id, { estEnsemble: next.estEnsemble });
+    await commitUpdate(item.id, next);
   }
 
   async function removeItem(id: string) {
@@ -112,6 +123,17 @@ export function PreparationScreen({
 
   const totalQuantite = items.reduce((sum, it) => sum + (it.quantite || 0), 0);
   const lotsCouverts = itemsByLot.size;
+
+  const suggestions = useMemo(() => {
+    function uniqueValues(pick: (it: ContratEquipement) => string | undefined) {
+      return Array.from(new Set(items.map(pick).filter((v): v is string => !!v && v.trim() !== "")));
+    }
+    return {
+      batiments: uniqueValues((it) => it.batiment),
+      etages: uniqueValues((it) => it.etage),
+      locaux: uniqueValues((it) => it.local),
+    };
+  }, [items]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -198,6 +220,22 @@ export function PreparationScreen({
             </p>
           ) : (
             <div className="flex flex-col gap-6">
+              <datalist id="suggestions-batiment">
+                {suggestions.batiments.map((v) => (
+                  <option key={v} value={v} />
+                ))}
+              </datalist>
+              <datalist id="suggestions-etage">
+                {suggestions.etages.map((v) => (
+                  <option key={v} value={v} />
+                ))}
+              </datalist>
+              <datalist id="suggestions-local">
+                {suggestions.locaux.map((v) => (
+                  <option key={v} value={v} />
+                ))}
+              </datalist>
+
               {lotsTechniques
                 .filter((lot) => itemsByLot.has(lot.id))
                 .map((lot) => (
@@ -206,20 +244,18 @@ export function PreparationScreen({
                       {lot.name}
                     </h3>
                     <div className="overflow-x-auto rounded-md border border-slate-100">
-                      <table className="w-full table-fixed text-sm">
-                        <colgroup>
-                          <col className="w-[28%]" />
-                          <col className="w-[32%]" />
-                          <col className="w-[10%]" />
-                          <col className="w-[24%]" />
-                          <col className="w-[6%]" />
-                        </colgroup>
+                      <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
-                            <th className="px-3 py-2 font-medium">Désignation</th>
-                            <th className="px-3 py-2 font-medium">Localisation prévue</th>
-                            <th className="px-3 py-2 font-medium">Qté</th>
-                            <th className="px-3 py-2 font-medium">Réf. contractuelle</th>
+                            <th className="min-w-[180px] px-3 py-2 font-medium">Désignation</th>
+                            <th className="min-w-[110px] px-3 py-2 font-medium">Bâtiment</th>
+                            <th className="min-w-[90px] px-3 py-2 font-medium">Étage</th>
+                            <th className="min-w-[140px] px-3 py-2 font-medium">Local</th>
+                            <th className="min-w-[60px] px-3 py-2 font-medium">Qté</th>
+                            <th className="min-w-[70px] px-3 py-2 font-medium text-center">Ensemble</th>
+                            <th className="min-w-[140px] px-3 py-2 font-medium">Réf. contractuelle</th>
+                            <th className="min-w-[140px] px-3 py-2 font-medium">N° de série</th>
+                            <th className="min-w-[160px] px-3 py-2 font-medium">Commentaire</th>
                             <th className="px-3 py-2" />
                           </tr>
                         </thead>
@@ -236,10 +272,31 @@ export function PreparationScreen({
                               </td>
                               <td className="px-3 py-2">
                                 <input
-                                  value={item.localisationPrevue ?? ""}
-                                  onChange={(e) => updateLocal(item.id, { localisationPrevue: e.target.value })}
+                                  list="suggestions-batiment"
+                                  value={item.batiment ?? ""}
+                                  onChange={(e) => updateLocal(item.id, { batiment: e.target.value })}
                                   onBlur={() => commitUpdate(item.id, item)}
-                                  placeholder="ex : Sous-sol - Local technique"
+                                  placeholder="ex : Bâtiment A"
+                                  className="w-full rounded border border-transparent bg-transparent px-2 py-1 placeholder:text-slate-300 hover:border-slate-200 focus:border-indigo-300 focus:outline-none"
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <input
+                                  list="suggestions-etage"
+                                  value={item.etage ?? ""}
+                                  onChange={(e) => updateLocal(item.id, { etage: e.target.value })}
+                                  onBlur={() => commitUpdate(item.id, item)}
+                                  placeholder="ex : R+2"
+                                  className="w-full rounded border border-transparent bg-transparent px-2 py-1 placeholder:text-slate-300 hover:border-slate-200 focus:border-indigo-300 focus:outline-none"
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <input
+                                  list="suggestions-local"
+                                  value={item.local ?? ""}
+                                  onChange={(e) => updateLocal(item.id, { local: e.target.value })}
+                                  onBlur={() => commitUpdate(item.id, item)}
+                                  placeholder="ex : Local technique"
                                   className="w-full rounded border border-transparent bg-transparent px-2 py-1 placeholder:text-slate-300 hover:border-slate-200 focus:border-indigo-300 focus:outline-none"
                                 />
                               </td>
@@ -255,12 +312,39 @@ export function PreparationScreen({
                                   className="w-16 rounded border border-transparent bg-transparent px-2 py-1 hover:border-slate-200 focus:border-indigo-300 focus:outline-none"
                                 />
                               </td>
+                              <td className="px-3 py-2 text-center">
+                                <input
+                                  type="checkbox"
+                                  checked={item.estEnsemble}
+                                  onChange={() => toggleEnsemble(item)}
+                                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-300"
+                                  aria-label="Traiter comme un ensemble"
+                                />
+                              </td>
                               <td className="px-3 py-2">
                                 <input
                                   value={item.referenceContractuelle ?? ""}
                                   onChange={(e) => updateLocal(item.id, { referenceContractuelle: e.target.value })}
                                   onBlur={() => commitUpdate(item.id, item)}
                                   placeholder="ex : LOT-CVC-01"
+                                  className="w-full rounded border border-transparent bg-transparent px-2 py-1 placeholder:text-slate-300 hover:border-slate-200 focus:border-indigo-300 focus:outline-none"
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <input
+                                  value={item.numeroSerie ?? ""}
+                                  onChange={(e) => updateLocal(item.id, { numeroSerie: e.target.value })}
+                                  onBlur={() => commitUpdate(item.id, item)}
+                                  placeholder="ex : SN123456"
+                                  className="w-full rounded border border-transparent bg-transparent px-2 py-1 placeholder:text-slate-300 hover:border-slate-200 focus:border-indigo-300 focus:outline-none"
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <input
+                                  value={item.notes ?? ""}
+                                  onChange={(e) => updateLocal(item.id, { notes: e.target.value })}
+                                  onBlur={() => commitUpdate(item.id, item)}
+                                  placeholder="ex : à vérifier au prochain passage"
                                   className="w-full rounded border border-transparent bg-transparent px-2 py-1 placeholder:text-slate-300 hover:border-slate-200 focus:border-indigo-300 focus:outline-none"
                                 />
                               </td>

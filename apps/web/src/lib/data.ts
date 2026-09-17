@@ -67,9 +67,13 @@ export function mapContratEquipement(row: {
   contrat_id: string;
   equipement_type_id: string;
   designation: string | null;
-  localisation_prevue: string | null;
+  batiment: string | null;
+  etage: string | null;
+  local: string | null;
   quantite: number;
+  est_ensemble: boolean;
   reference_contractuelle: string | null;
+  numero_serie: string | null;
   notes: string | null;
 }): ContratEquipement {
   return {
@@ -77,9 +81,13 @@ export function mapContratEquipement(row: {
     contratId: row.contrat_id,
     equipementTypeId: row.equipement_type_id,
     designation: row.designation ?? undefined,
-    localisationPrevue: row.localisation_prevue ?? undefined,
+    batiment: row.batiment ?? undefined,
+    etage: row.etage ?? undefined,
+    local: row.local ?? undefined,
     quantite: row.quantite,
+    estEnsemble: row.est_ensemble,
     referenceContractuelle: row.reference_contractuelle ?? undefined,
+    numeroSerie: row.numero_serie ?? undefined,
     notes: row.notes ?? undefined,
   };
 }

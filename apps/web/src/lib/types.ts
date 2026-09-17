@@ -50,17 +50,25 @@ export interface ContratEquipement {
   contratId: string;
   equipementTypeId: string;
   designation?: string;
-  localisationPrevue?: string;
+  batiment?: string;
+  etage?: string;
+  local?: string;
   quantite: number;
+  estEnsemble: boolean;
   referenceContractuelle?: string;
+  numeroSerie?: string;
   notes?: string;
 }
 
 export interface NewContratEquipementInput {
   equipementTypeId: string;
   designation?: string;
-  localisationPrevue?: string;
+  batiment?: string;
+  etage?: string;
+  local?: string;
   quantite: number;
+  estEnsemble?: boolean;
   referenceContractuelle?: string;
+  numeroSerie?: string;
   notes?: string;
 }

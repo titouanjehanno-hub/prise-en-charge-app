@@ -4,10 +4,14 @@ import type { EquipementType, LotTechnique, NewContratEquipementInput } from "./
 const HEADERS = [
   "Code type d'équipement",
   "Désignation",
-  "Localisation prévue",
+  "Bâtiment",
+  "Étage",
+  "Local",
   "Quantité",
+  "Ensemble (oui/non)",
   "Référence contractuelle",
-  "Notes",
+  "Numéro de série",
+  "Commentaire",
 ] as const;
 
 export type ImportRowStatus = "ok" | "type_introuvable" | "quantite_invalide";
@@ -16,9 +20,13 @@ export interface ImportPreviewRow {
   rowNumber: number;
   typeInput: string;
   designation: string;
-  localisationPrevue: string;
+  batiment: string;
+  etage: string;
+  local: string;
   quantite: string;
+  estEnsemble: boolean;
   referenceContractuelle: string;
+  numeroSerie: string;
   notes: string;
   matchedType?: EquipementType;
   status: ImportRowStatus;
@@ -26,6 +34,10 @@ export interface ImportPreviewRow {
 
 function normalize(value: unknown): string {
   return String(value ?? "").trim();
+}
+
+function parseBoolean(value: string): boolean {
+  return ["oui", "yes", "true", "1", "x"].includes(value.trim().toLowerCase());
 }
 
 function findEquipementType(
@@ -59,10 +71,14 @@ export async function parseContratEquipementsFile(
   return rows.map((row, index) => {
     const typeInput = normalize(row[HEADERS[0]]);
     const designation = normalize(row[HEADERS[1]]);
-    const localisationPrevue = normalize(row[HEADERS[2]]);
-    const quantiteRaw = normalize(row[HEADERS[3]]);
-    const referenceContractuelle = normalize(row[HEADERS[4]]);
-    const notes = normalize(row[HEADERS[5]]);
+    const batiment = normalize(row[HEADERS[2]]);
+    const etage = normalize(row[HEADERS[3]]);
+    const local = normalize(row[HEADERS[4]]);
+    const quantiteRaw = normalize(row[HEADERS[5]]);
+    const estEnsemble = parseBoolean(normalize(row[HEADERS[6]]));
+    const referenceContractuelle = normalize(row[HEADERS[7]]);
+    const numeroSerie = normalize(row[HEADERS[8]]);
+    const notes = normalize(row[HEADERS[9]]);
 
     const matchedType = findEquipementType(typeInput, equipementTypes);
     const quantiteValide = quantiteRaw === "" || (/^\d+$/.test(quantiteRaw) && Number(quantiteRaw) > 0);
@@ -75,9 +91,13 @@ export async function parseContratEquipementsFile(
       rowNumber: index + 2, // +1 header, +1 pour un affichage 1-indexé
       typeInput,
       designation,
-      localisationPrevue,
+      batiment,
+      etage,
+      local,
       quantite: quantiteRaw,
+      estEnsemble,
       referenceContractuelle,
+      numeroSerie,
       notes,
       matchedType,
       status,
@@ -92,9 +112,13 @@ export function toNewEquipementInput(row: ImportPreviewRow): NewContratEquipemen
   return {
     equipementTypeId: row.matchedType.id,
     designation: row.designation || row.matchedType.name,
-    localisationPrevue: row.localisationPrevue || undefined,
+    batiment: row.batiment || undefined,
+    etage: row.etage || undefined,
+    local: row.local || undefined,
     quantite: row.quantite ? Number(row.quantite) : 1,
+    estEnsemble: row.estEnsemble,
     referenceContractuelle: row.referenceContractuelle || undefined,
+    numeroSerie: row.numeroSerie || undefined,
     notes: row.notes || undefined,
   };
 }
@@ -108,20 +132,28 @@ export function downloadImportTemplate(
     {
       [HEADERS[0]]: exampleType?.code ?? "",
       [HEADERS[1]]: exampleType ? `${exampleType.name} - exemple` : "",
-      [HEADERS[2]]: "Sous-sol - Local technique",
-      [HEADERS[3]]: 1,
-      [HEADERS[4]]: "LOT-01",
-      [HEADERS[5]]: "",
+      [HEADERS[2]]: "Bâtiment A",
+      [HEADERS[3]]: "Sous-sol",
+      [HEADERS[4]]: "Local chaufferie",
+      [HEADERS[5]]: 1,
+      [HEADERS[6]]: "non",
+      [HEADERS[7]]: "LOT-01",
+      [HEADERS[8]]: "",
+      [HEADERS[9]]: "",
     },
   ];
   const importSheet = XLSX.utils.json_to_sheet(exampleRows, { header: [...HEADERS] });
   importSheet["!cols"] = [
     { wch: 24 },
     { wch: 32 },
-    { wch: 28 },
-    { wch: 10 },
+    { wch: 16 },
+    { wch: 14 },
     { wch: 20 },
-    { wch: 24 },
+    { wch: 10 },
+    { wch: 16 },
+    { wch: 20 },
+    { wch: 18 },
+    { wch: 28 },
   ];
 
   const referentielRows = lotsTechniques.flatMap((lot) =>
