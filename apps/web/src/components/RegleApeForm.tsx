@@ -1,7 +1,14 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import type { EquipementType, EtatEquipement, LotTechnique, RegleApe } from "@/lib/types";
+import type {
+  CategorieRegle,
+  EquipementType,
+  EtatEquipement,
+  LotTechnique,
+  PrioriteRegle,
+  RegleApe,
+} from "@/lib/types";
 
 const ETATS: { value: EtatEquipement; label: string }[] = [
   { value: "bon", label: "Bon" },
@@ -9,6 +16,12 @@ const ETATS: { value: EtatEquipement; label: string }[] = [
   { value: "mauvais", label: "Mauvais" },
   { value: "hors_service", label: "Hors service" },
   { value: "non_trouve", label: "Non trouvé" },
+];
+
+const PRIORITES: { value: PrioriteRegle; label: string }[] = [
+  { value: "urgent", label: "Urgent" },
+  { value: "a_prevoir", label: "À prévoir" },
+  { value: "surveiller", label: "À surveiller" },
 ];
 
 interface RegleApeFormProps {
@@ -29,12 +42,56 @@ export function RegleApeForm({
   const [error, formAction, isPending] = useActionState(action, null);
   const [equipementTypeId, setEquipementTypeId] = useState(initial?.equipementTypeId ?? "");
   const [plaqueChampCle, setPlaqueChampCle] = useState(initial?.plaqueChampCle ?? "");
+  const [categorie, setCategorie] = useState<CategorieRegle>(initial?.categorie ?? "energie");
 
   const selectedType = equipementTypes.find((t) => t.id === equipementTypeId);
   const selectedChamp = selectedType?.plaqueSignaletiqueSchema.find((c) => c.key === plaqueChampCle);
 
   return (
     <form action={formAction} className="flex flex-col gap-5 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+      <div>
+        <label className="mb-1 block text-sm font-medium text-slate-700">Catégorie</label>
+        <div className="flex gap-3">
+          <label className="flex items-center gap-1.5 text-sm text-slate-600">
+            <input
+              type="radio"
+              name="categorie"
+              value="energie"
+              checked={categorie === "energie"}
+              onChange={() => setCategorie("energie")}
+            />
+            Efficacité énergétique (APE)
+          </label>
+          <label className="flex items-center gap-1.5 text-sm text-slate-600">
+            <input
+              type="radio"
+              name="categorie"
+              value="securite"
+              checked={categorie === "securite"}
+              onChange={() => setCategorie("securite")}
+            />
+            Sécurité / conformité réglementaire (plan d&apos;action)
+          </label>
+        </div>
+      </div>
+
+      {categorie === "securite" && (
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Priorité</label>
+          <select
+            name="priorite"
+            defaultValue={initial?.priorite ?? "urgent"}
+            className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-indigo-300 focus:outline-none"
+          >
+            {PRIORITES.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700">Type d&apos;équipement concerné</label>
         <select

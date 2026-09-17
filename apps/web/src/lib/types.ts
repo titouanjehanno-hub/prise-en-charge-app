@@ -20,6 +20,7 @@ export interface EquipementType {
   code: string;
   name: string;
   plaqueSignaletiqueSchema: PlaqueSignaletiqueChamp[];
+  estReglementaire: boolean;
 }
 
 export interface Client {
@@ -122,6 +123,9 @@ export interface ActionApe {
   description: string;
 }
 
+export type CategorieRegle = "energie" | "securite";
+export type PrioriteRegle = "urgent" | "a_prevoir" | "surveiller";
+
 export interface RegleApe {
   id: string;
   orgId?: string;
@@ -130,6 +134,8 @@ export interface RegleApe {
   plaqueChampCle?: string;
   plaqueChampValeurs?: string[];
   action: string;
+  categorie: CategorieRegle;
+  priorite?: PrioriteRegle;
 }
 
 export interface NewRegleApeInput {
@@ -138,4 +144,6 @@ export interface NewRegleApeInput {
   plaqueChampCle?: string;
   plaqueChampValeurs?: string[];
   action: string;
+  categorie: CategorieRegle;
+  priorite?: PrioriteRegle;
 }

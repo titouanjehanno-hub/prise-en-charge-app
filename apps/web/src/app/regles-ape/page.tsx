@@ -12,6 +12,18 @@ const ETAT_LABEL: Record<string, string> = {
   non_trouve: "Non trouvé",
 };
 
+const PRIORITE_LABEL: Record<string, string> = {
+  urgent: "Urgent",
+  a_prevoir: "À prévoir",
+  surveiller: "À surveiller",
+};
+
+const PRIORITE_COLOR: Record<string, string> = {
+  urgent: "bg-red-50 text-red-700",
+  a_prevoir: "bg-amber-50 text-amber-700",
+  surveiller: "bg-slate-100 text-slate-600",
+};
+
 function describeRegle(regle: RegleApe, equipementTypeById: Map<string, EquipementType>) {
   const type = regle.equipementTypeId ? equipementTypeById.get(regle.equipementTypeId) : undefined;
   const parts: string[] = [type ? type.name : "Tous types"];
@@ -41,6 +53,20 @@ export default async function ReglesApePage() {
     return (
       <div className="flex items-start justify-between gap-4 rounded-md border border-slate-100 bg-white p-3">
         <div>
+          <div className="mb-1 flex items-center gap-2">
+            <span
+              className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+                regle.categorie === "securite" ? "bg-indigo-50 text-indigo-700" : "bg-teal-50 text-teal-700"
+              }`}
+            >
+              {regle.categorie === "securite" ? "Sécurité / plan d'action" : "Énergie (APE)"}
+            </span>
+            {regle.priorite && (
+              <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${PRIORITE_COLOR[regle.priorite]}`}>
+                {PRIORITE_LABEL[regle.priorite]}
+              </span>
+            )}
+          </div>
           <p className="text-sm text-slate-800">{describeRegle(regle, equipementTypeById)}</p>
           <p className="mt-1 text-xs text-slate-500">{regle.action}</p>
         </div>
@@ -60,10 +86,10 @@ export default async function ReglesApePage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Règles APE</h1>
+          <h1 className="text-xl font-semibold text-slate-900">Règles APE &amp; plan d&apos;action</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Actions de performance énergétique suggérées automatiquement sur l&apos;écran d&apos;analyse, selon le type
-            d&apos;équipement, son état et/ou sa plaque signalétique.
+            Actions suggérées automatiquement sur l&apos;écran d&apos;analyse (efficacité énergétique, ou sécurité /
+            conformité réglementaire), selon le type d&apos;équipement, son état et/ou sa plaque signalétique.
           </p>
         </div>
         {isAdmin && (

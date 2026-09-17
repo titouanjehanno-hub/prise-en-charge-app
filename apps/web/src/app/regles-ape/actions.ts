@@ -10,6 +10,8 @@ function parseInputFromFormData(formData: FormData) {
   const plaqueChampCle = String(formData.get("plaqueChampCle") ?? "").trim();
   const plaqueChampValeursRaw = String(formData.get("plaqueChampValeurs") ?? "").trim();
   const action = String(formData.get("action") ?? "").trim();
+  const categorie = String(formData.get("categorie") ?? "energie").trim();
+  const priorite = String(formData.get("priorite") ?? "").trim();
 
   const plaqueChampValeurs = plaqueChampValeursRaw
     ? plaqueChampValeursRaw
@@ -24,6 +26,8 @@ function parseInputFromFormData(formData: FormData) {
     plaque_champ_cle: plaqueChampCle || null,
     plaque_champ_valeurs: plaqueChampCle && plaqueChampValeurs.length > 0 ? plaqueChampValeurs : null,
     action,
+    categorie,
+    priorite: categorie === "securite" && priorite ? priorite : null,
   };
 }
 

@@ -25,6 +25,7 @@ function mapType(row: {
   code: string;
   name: string;
   plaque_signaletique_schema: EquipementType["plaqueSignaletiqueSchema"];
+  est_reglementaire: boolean;
 }): EquipementType {
   return {
     id: row.id,
@@ -32,6 +33,7 @@ function mapType(row: {
     code: row.code,
     name: row.name,
     plaqueSignaletiqueSchema: row.plaque_signaletique_schema ?? [],
+    estReglementaire: row.est_reglementaire,
   };
 }
 
@@ -301,6 +303,8 @@ function mapRegleApe(row: {
   plaque_champ_cle: string | null;
   plaque_champ_valeurs: string[] | null;
   action: string;
+  categorie: RegleApe["categorie"];
+  priorite: RegleApe["priorite"] | null;
 }): RegleApe {
   return {
     id: row.id,
@@ -310,6 +314,8 @@ function mapRegleApe(row: {
     plaqueChampCle: row.plaque_champ_cle ?? undefined,
     plaqueChampValeurs: row.plaque_champ_valeurs ?? undefined,
     action: row.action,
+    categorie: row.categorie,
+    priorite: row.priorite ?? undefined,
   };
 }
 
