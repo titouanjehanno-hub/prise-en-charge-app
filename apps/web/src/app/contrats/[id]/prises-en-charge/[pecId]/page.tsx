@@ -1,19 +1,8 @@
 import { notFound } from "next/navigation";
 import { AnalyseSynthese } from "@/components/AnalyseSynthese";
 import { PropositionsIngenieur } from "@/components/PropositionsIngenieur";
-import {
-  getActionsApePourPriseEnCharge,
-  getClient,
-  getContrat,
-  getContratEquipements,
-  getEquipementsReleves,
-  getPhotosPourEquipementsReleves,
-  getPriseEnCharge,
-  getReferentiel,
-  getReglesApe,
-  getSite,
-} from "@/lib/data";
-import type { ContratEquipement, EquipementReleve, EquipementType, Photo, PrioriteRegle, RegleApe } from "@/lib/types";
+import { getRapportAnalyse, type EquipementLigne } from "@/lib/rapport";
+import type { PrioriteRegle } from "@/lib/types";
 import { validerPriseEnCharge } from "./actions";
 
 const STATUT_LABEL: Record<string, string> = {
@@ -58,68 +47,46 @@ const PRIORITE_BORDER: Record<PrioriteRegle, string> = {
   surveiller: "border-slate-200 bg-slate-50",
 };
 
-const PRIORITE_ORDER: Record<PrioriteRegle, number> = { urgent: 0, a_prevoir: 1, surveiller: 2 };
-
-function PhotosRow({ photos }: { photos: Photo[] }) {
-  if (photos.length === 0) return null;
-  return (
-    <div className="mt-2 flex flex-wrap gap-2">
-      {photos.map((photo) => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          key={photo.id}
-          src={photo.url}
-          alt=""
-          className="h-16 w-16 rounded-md border border-slate-200 object-cover"
-        />
-      ))}
-    </div>
-  );
-}
-
-function EquipementLine({
-  title,
-  subtitle,
-  etat,
-  commentaire,
-  photos,
-  reglementaire,
-}: {
-  title: string;
-  subtitle?: string;
-  etat?: string;
-  commentaire?: string;
-  photos?: Photo[];
-  reglementaire?: boolean;
-}) {
-  const attention = reglementaire && (!etat || etat === "mauvais" || etat === "hors_service" || etat === "non_trouve");
+function EquipementLine({ ligne }: { ligne: EquipementLigne }) {
   return (
     <div className="rounded-md border border-slate-100 bg-white p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-medium text-slate-800">{title}</p>
-            {reglementaire && (
+            <p className="text-sm font-medium text-slate-800">{ligne.title}</p>
+            {ligne.reglementaire && (
               <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-blue-700">
                 Réglementaire
               </span>
             )}
-            {attention && (
+            {ligne.attention && (
               <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-red-700">
                 Attention
               </span>
             )}
           </div>
-          {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
+          {ligne.subtitle && <p className="text-xs text-slate-400">{ligne.subtitle}</p>}
         </div>
-        {etat && (
-          <span className={`whitespace-nowrap rounded px-2 py-1 text-xs font-medium ${ETAT_COLOR[etat] ?? "bg-slate-100 text-slate-600"}`}>
-            {ETAT_LABEL[etat] ?? etat}
+        {ligne.etat && (
+          <span className={`whitespace-nowrap rounded px-2 py-1 text-xs font-medium ${ETAT_COLOR[ligne.etat] ?? "bg-slate-100 text-slate-600"}`}>
+            {ETAT_LABEL[ligne.etat] ?? ligne.etat}
           </span>
         )}
       </div>
-      {commentaire && <p className="mt-2 text-xs text-slate-500">{commentaire}</p>}
-      {photos && <PhotosRow photos={photos} />}
+      {ligne.commentaire && <p className="mt-2 text-xs text-slate-500">{ligne.commentaire}</p>}
+      {ligne.photos.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {ligne.photos.map((photo) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={photo.id}
+              src={photo.url}
+              alt=""
+              className="h-16 w-16 rounded-md border border-slate-200 object-cover"
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -137,218 +104,26 @@ export default async function AnalysePage(
   props: PageProps<"/contrats/[id]/prises-en-charge/[pecId]">,
 ) {
   const { id, pecId } = await props.params;
+  const rapport = await getRapportAnalyse(id, pecId);
+  if (!rapport) notFound();
 
-  const [contrat, priseEnCharge] = await Promise.all([getContrat(id), getPriseEnCharge(pecId)]);
-  if (!contrat || !priseEnCharge || priseEnCharge.contratId !== id) notFound();
-
-  const [client, site, { equipementTypes }, contratEquipements, equipementsReleves, reglesApe, actionsApe] =
-    await Promise.all([
-      getClient(contrat.clientId),
-      getSite(contrat.siteId),
-      getReferentiel(),
-      getContratEquipements(id),
-      getEquipementsReleves(pecId),
-      getReglesApe(),
-      getActionsApePourPriseEnCharge(pecId),
-    ]);
-  if (!client || !site) notFound();
-
-  const photosByReleveId = await getPhotosPourEquipementsReleves(equipementsReleves.map((r) => r.id));
-
-  const equipementTypeById = new Map<string, EquipementType>(equipementTypes.map((t) => [t.id, t]));
-  const releveByContratEquipementId = new Map<string, EquipementReleve>();
-  for (const releve of equipementsReleves) {
-    if (releve.contratEquipementId) releveByContratEquipementId.set(releve.contratEquipementId, releve);
-  }
-
-  const manquants: ContratEquipement[] = [];
-  const nonTrouves: { ce: ContratEquipement; releve: EquipementReleve }[] = [];
-  const conformes: { ce: ContratEquipement; releve: EquipementReleve }[] = [];
-  const degradesContrat: { ce: ContratEquipement; releve: EquipementReleve }[] = [];
-
-  for (const ce of contratEquipements) {
-    const releve = releveByContratEquipementId.get(ce.id);
-    if (!releve) {
-      manquants.push(ce);
-    } else if (releve.etat === "non_trouve") {
-      nonTrouves.push({ ce, releve });
-    } else if (releve.etat === "moyen" || releve.etat === "mauvais" || releve.etat === "hors_service") {
-      degradesContrat.push({ ce, releve });
-    } else if (releve.etat === "bon") {
-      conformes.push({ ce, releve });
-    }
-  }
-
-  const horsContrat = equipementsReleves.filter((r) => r.estHorsContrat);
-  const degradesHorsContrat = horsContrat.filter(
-    (r) => r.etat === "moyen" || r.etat === "mauvais" || r.etat === "hors_service",
-  );
-
-  const totalPrevu = contratEquipements.length;
-  const totalRenseigne = totalPrevu - manquants.length;
-  const tauxCompletion = totalPrevu > 0 ? Math.round((totalRenseigne / totalPrevu) * 100) : 0;
-
-  function localisationCe(ce: ContratEquipement) {
-    return [ce.batiment, ce.etage, ce.local].filter(Boolean).join(" · ") || undefined;
-  }
-
-  function estDegradeOuAbsent(etat?: string): boolean {
-    return etat === "moyen" || etat === "mauvais" || etat === "hors_service" || etat === "non_trouve";
-  }
-
-  function matchRegle(regle: RegleApe, releve: EquipementReleve): boolean {
-    if (regle.equipementTypeId && regle.equipementTypeId !== releve.equipementTypeId) return false;
-    if (regle.etats && regle.etats.length > 0) {
-      if (!releve.etat || !regle.etats.includes(releve.etat)) return false;
-    }
-    if (regle.plaqueChampCle) {
-      const valeur = releve.plaqueSignaletique[regle.plaqueChampCle];
-      if (!valeur || !(regle.plaqueChampValeurs ?? []).includes(valeur)) return false;
-    }
-    return true;
-  }
-
-  const contratEquipementById = new Map(contratEquipements.map((ce) => [ce.id, ce]));
-  const reglesEnergie = reglesApe.filter((r) => r.categorie === "energie");
-  const reglesSecurite = reglesApe.filter((r) => r.categorie === "securite");
-
-  // --- Actions de performance énergétique (existant) ---
-  const recommandations = equipementsReleves
-    .map((releve) => {
-      const actions = reglesEnergie.filter((r) => matchRegle(r, releve)).map((r) => r.action);
-      if (actions.length === 0) return null;
-      const ce = releve.contratEquipementId ? contratEquipementById.get(releve.contratEquipementId) : undefined;
-      const type = equipementTypeById.get(releve.equipementTypeId);
-      return {
-        releve,
-        title: releve.designation || ce?.designation || type?.name || "—",
-        subtitle: releve.localisation || (ce ? localisationCe(ce) : undefined),
-        actions,
-      };
-    })
-    .filter((x): x is NonNullable<typeof x> => x !== null);
-
-  // --- Plan d'action (sécurité / conformité réglementaire) ---
-  interface PlanActionItem {
-    key: string;
-    title: string;
-    subtitle?: string;
-    action: string;
-    priorite: PrioriteRegle;
-  }
-
-  const planAction: PlanActionItem[] = [];
-  const releveIdsAvecRegleSecurite = new Set<string>();
-
-  for (const releve of equipementsReleves) {
-    const reglesMatchees = reglesSecurite.filter((r) => matchRegle(r, releve));
-    if (reglesMatchees.length === 0) continue;
-    releveIdsAvecRegleSecurite.add(releve.id);
-    const ce = releve.contratEquipementId ? contratEquipementById.get(releve.contratEquipementId) : undefined;
-    const type = equipementTypeById.get(releve.equipementTypeId);
-    const title = releve.designation || ce?.designation || type?.name || "—";
-    const subtitle = releve.localisation || (ce ? localisationCe(ce) : undefined);
-    for (const regle of reglesMatchees) {
-      planAction.push({
-        key: `${releve.id}-${regle.id}`,
-        title,
-        subtitle,
-        action: regle.action,
-        priorite: regle.priorite ?? "a_prevoir",
-      });
-    }
-  }
-
-  // Filet de sécurité : équipement réglementaire dégradé/non trouvé sans règle spécifique définie
-  for (const releve of equipementsReleves) {
-    if (releveIdsAvecRegleSecurite.has(releve.id)) continue;
-    const type = equipementTypeById.get(releve.equipementTypeId);
-    if (!type?.estReglementaire || !estDegradeOuAbsent(releve.etat)) continue;
-    const ce = releve.contratEquipementId ? contratEquipementById.get(releve.contratEquipementId) : undefined;
-    planAction.push({
-      key: `${releve.id}-generique`,
-      title: releve.designation || ce?.designation || type.name,
-      subtitle: releve.localisation || (ce ? localisationCe(ce) : undefined),
-      action:
-        releve.etat === "non_trouve"
-          ? "Équipement réglementaire non retrouvé sur site : vérifier sa présence et sa conformité."
-          : "Équipement réglementaire en état dégradé : vérification de conformité et remise en état à prévoir.",
-      priorite: releve.etat === "mauvais" || releve.etat === "hors_service" ? "urgent" : "a_prevoir",
-    });
-  }
-
-  // Équipements réglementaires jamais contrôlés lors de cette visite
-  for (const ce of manquants) {
-    const type = equipementTypeById.get(ce.equipementTypeId);
-    if (!type?.estReglementaire) continue;
-    planAction.push({
-      key: `${ce.id}-manquant`,
-      title: ce.designation || type.name,
-      subtitle: localisationCe(ce),
-      action: "Équipement réglementaire non contrôlé lors de cette visite : vérification à prévoir.",
-      priorite: "a_prevoir",
-    });
-  }
-
-  planAction.sort((a, b) => PRIORITE_ORDER[a.priorite] - PRIORITE_ORDER[b.priorite]);
-
-  // --- Bilan pour le client (synthèse automatique en langage clair) ---
-  const bilanPoints: string[] = [];
-  if (totalPrevu > 0) {
-    bilanPoints.push(
-      tauxCompletion === 100
-        ? `L'ensemble des ${totalPrevu} équipement(s) prévus au contrat a été contrôlé lors de cette visite.`
-        : `${totalRenseigne} équipement(s) sur ${totalPrevu} prévus au contrat ont été contrôlés lors de cette visite (${tauxCompletion}%).`,
-    );
-  }
-  if (conformes.length > 0) {
-    bilanPoints.push(
-      `${conformes.length} équipement(s) sont en bon état, ce qui témoigne d'un entretien globalement satisfaisant.`,
-    );
-  }
-  const nbDegrades = degradesContrat.length + degradesHorsContrat.length;
-  if (nbDegrades > 0) {
-    bilanPoints.push(
-      `${nbDegrades} équipement(s) sont en état dégradé et nécessitent une intervention (voir le plan d'action).`,
-    );
-  }
-  if (manquants.length > 0) {
-    bilanPoints.push(
-      `${manquants.length} équipement(s) prévus au contrat n'ont pas été contrôlés lors de cette visite : leur état réel reste à vérifier.`,
-    );
-  }
-  if (nonTrouves.length > 0) {
-    bilanPoints.push(
-      `${nonTrouves.length} équipement(s) n'ont pas été retrouvés sur site, ce qui peut indiquer un défaut de maintenance, un retrait non signalé ou une erreur d'inventaire à clarifier.`,
-    );
-  }
-  if (horsContrat.length > 0) {
-    bilanPoints.push(
-      `${horsContrat.length} équipement(s) supplémentaire(s) ont été découverts sur site sans être prévus au contrat : le patrimoine réel du site est plus important que ce qui est couvert actuellement, ce qui peut justifier une mise à jour du contrat.`,
-    );
-  }
-  const nbUrgent = planAction.filter((p) => p.priorite === "urgent").length;
-  if (nbUrgent > 0) {
-    bilanPoints.push(
-      `${nbUrgent} point(s) nécessitent une action urgente pour des raisons de sécurité ou de conformité réglementaire (voir le plan d'action).`,
-    );
-  }
-  if (bilanPoints.length === 0) {
-    bilanPoints.push("Aucune donnée exploitable pour cette prise en charge pour le moment.");
-  }
-
-  const equipementReleveById = new Map(equipementsReleves.map((r) => [r.id, r]));
-  function titreDepuisReleveId(equipementReleveId?: string): string | undefined {
-    if (!equipementReleveId) return undefined;
-    const releve = equipementReleveById.get(equipementReleveId);
-    if (!releve) return undefined;
-    const ce = releve.contratEquipementId ? contratEquipementById.get(releve.contratEquipementId) : undefined;
-    const type = equipementTypeById.get(releve.equipementTypeId);
-    return releve.designation || ce?.designation || type?.name;
-  }
-
-  const remarquesTechnicien = actionsApe.filter((a) => a.origine === "technicien");
-  const propositionsIngenieur = actionsApe.filter((a) => a.origine === "ingenieur");
+  const {
+    contrat,
+    client,
+    site,
+    priseEnCharge,
+    stats,
+    bilanPoints,
+    planAction,
+    recommandationsEnergie,
+    remarquesTechnicien,
+    propositionsIngenieur,
+    manquants,
+    nonTrouves,
+    degrades,
+    horsContrat,
+    conformes,
+  } = rapport;
 
   return (
     <div className="flex flex-col gap-6">
@@ -369,6 +144,20 @@ export default async function AnalysePage(
             <span className="rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
               {STATUT_LABEL[priseEnCharge.statut] ?? priseEnCharge.statut}
             </span>
+            <div className="flex gap-2">
+              <a
+                href={`/contrats/${id}/prises-en-charge/${pecId}/export/pdf`}
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Télécharger en PDF
+              </a>
+              <a
+                href={`/contrats/${id}/prises-en-charge/${pecId}/export/word`}
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Télécharger en Word
+              </a>
+            </div>
             {priseEnCharge.statut === "terminee" && (
               <form action={validerPriseEnCharge.bind(null, pecId, id)}>
                 <button
@@ -393,16 +182,16 @@ export default async function AnalysePage(
       </section>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Prévus" value={totalPrevu} />
-        <StatCard label="Renseignés" value={totalRenseigne} />
-        <StatCard label="Taux de complétion" value={tauxCompletion} color="text-indigo-600" />
-        <StatCard label="Bon état" value={conformes.length} color="text-emerald-600" />
-        <StatCard label="État dégradé" value={nbDegrades} color="text-amber-600" />
-        <StatCard label="Manquants" value={manquants.length} color="text-red-600" />
-        <StatCard label="Non trouvés" value={nonTrouves.length} color="text-red-600" />
-        <StatCard label="Hors contrat" value={horsContrat.length} color="text-indigo-600" />
-        <StatCard label="Plan d'action" value={planAction.length} color="text-red-600" />
-        <StatCard label="Actions énergétiques suggérées" value={recommandations.length} color="text-teal-600" />
+        <StatCard label="Prévus" value={stats.totalPrevu} />
+        <StatCard label="Renseignés" value={stats.totalRenseigne} />
+        <StatCard label="Taux de complétion" value={stats.tauxCompletion} color="text-indigo-600" />
+        <StatCard label="Bon état" value={stats.nbConformes} color="text-emerald-600" />
+        <StatCard label="État dégradé" value={stats.nbDegrades} color="text-amber-600" />
+        <StatCard label="Manquants" value={stats.nbManquants} color="text-red-600" />
+        <StatCard label="Non trouvés" value={stats.nbNonTrouves} color="text-red-600" />
+        <StatCard label="Hors contrat" value={stats.nbHorsContrat} color="text-indigo-600" />
+        <StatCard label="Plan d'action" value={stats.nbPlanAction} color="text-red-600" />
+        <StatCard label="Actions énergétiques suggérées" value={stats.nbRecommandationsEnergie} color="text-teal-600" />
       </div>
 
       {planAction.length > 0 && (
@@ -427,18 +216,18 @@ export default async function AnalysePage(
         </section>
       )}
 
-      {recommandations.length > 0 && (
+      {recommandationsEnergie.length > 0 && (
         <section>
           <h2 className="mb-2 text-sm font-semibold text-teal-700">
-            Actions de performance énergétique suggérées — {recommandations.length}
+            Actions de performance énergétique suggérées — {recommandationsEnergie.length}
           </h2>
           <div className="flex flex-col gap-2">
-            {recommandations.map(({ releve, title, subtitle, actions }) => (
-              <div key={releve.id} className="rounded-md border border-teal-100 bg-teal-50/60 p-3">
-                <p className="text-sm font-medium text-slate-800">{title}</p>
-                {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
+            {recommandationsEnergie.map((r) => (
+              <div key={r.key} className="rounded-md border border-teal-100 bg-teal-50/60 p-3">
+                <p className="text-sm font-medium text-slate-800">{r.title}</p>
+                {r.subtitle && <p className="text-xs text-slate-400">{r.subtitle}</p>}
                 <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-slate-600">
-                  {actions.map((action) => (
+                  {r.actions.map((action) => (
                     <li key={action}>{action}</li>
                   ))}
                 </ul>
@@ -456,9 +245,7 @@ export default async function AnalysePage(
           <div className="flex flex-col gap-2">
             {remarquesTechnicien.map((remarque) => (
               <div key={remarque.id} className="rounded-md border border-teal-100 bg-teal-50/40 p-3">
-                <p className="text-xs font-medium uppercase tracking-wide text-teal-600">
-                  {titreDepuisReleveId(remarque.equipementReleveId) ?? "Remarque générale"}
-                </p>
+                <p className="text-xs font-medium uppercase tracking-wide text-teal-600">{remarque.titre}</p>
                 <p className="mt-1 text-sm text-slate-700">{remarque.description}</p>
               </div>
             ))}
@@ -470,10 +257,7 @@ export default async function AnalysePage(
         <h2 className="mb-3 text-sm font-semibold text-slate-900">
           Propositions de l&apos;ingénieur efficacité énergétique
         </h2>
-        <PropositionsIngenieur
-          pecId={pecId}
-          initial={propositionsIngenieur.map((p) => ({ id: p.id, description: p.description }))}
-        />
+        <PropositionsIngenieur pecId={pecId} initial={propositionsIngenieur} />
       </section>
 
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -495,17 +279,9 @@ export default async function AnalysePage(
             signifie pas qu&apos;ils sont défaillants, mais que leur état actuel n&apos;est pas connu.
           </p>
           <div className="flex flex-col gap-2">
-            {manquants.map((ce) => {
-              const type = equipementTypeById.get(ce.equipementTypeId);
-              return (
-                <EquipementLine
-                  key={ce.id}
-                  title={ce.designation || type?.name || "—"}
-                  subtitle={localisationCe(ce)}
-                  reglementaire={type?.estReglementaire}
-                />
-              );
-            })}
+            {manquants.map((ligne) => (
+              <EquipementLine key={ligne.id} ligne={ligne} />
+            ))}
           </div>
         </section>
       )}
@@ -520,62 +296,24 @@ export default async function AnalysePage(
             maintenance, un retrait non déclaré, ou une erreur d&apos;inventaire à vérifier avec le client.
           </p>
           <div className="flex flex-col gap-2">
-            {nonTrouves.map(({ ce, releve }) => {
-              const type = equipementTypeById.get(ce.equipementTypeId);
-              return (
-                <EquipementLine
-                  key={ce.id}
-                  title={ce.designation || type?.name || "—"}
-                  subtitle={localisationCe(ce)}
-                  etat={releve.etat}
-                  commentaire={releve.commentaire}
-                  photos={photosByReleveId.get(releve.id)}
-                  reglementaire={type?.estReglementaire}
-                />
-              );
-            })}
+            {nonTrouves.map((ligne) => (
+              <EquipementLine key={ligne.id} ligne={ligne} />
+            ))}
           </div>
         </section>
       )}
 
-      {(degradesContrat.length > 0 || degradesHorsContrat.length > 0) && (
+      {degrades.length > 0 && (
         <section>
-          <h2 className="mb-2 text-sm font-semibold text-amber-700">
-            Équipements en état dégradé — {nbDegrades}
-          </h2>
+          <h2 className="mb-2 text-sm font-semibold text-amber-700">Équipements en état dégradé — {degrades.length}</h2>
           <p className="mb-2 text-xs text-slate-500">
             Ces équipements fonctionnent mais présentent une usure ou un défaut : une intervention est recommandée pour
             éviter une panne complète.
           </p>
           <div className="flex flex-col gap-2">
-            {degradesContrat.map(({ ce, releve }) => {
-              const type = equipementTypeById.get(ce.equipementTypeId);
-              return (
-                <EquipementLine
-                  key={releve.id}
-                  title={ce.designation || type?.name || "—"}
-                  subtitle={releve.localisation || localisationCe(ce)}
-                  etat={releve.etat}
-                  commentaire={releve.commentaire}
-                  photos={photosByReleveId.get(releve.id)}
-                  reglementaire={type?.estReglementaire}
-                />
-              );
-            })}
-            {degradesHorsContrat.map((releve) => {
-              const type = equipementTypeById.get(releve.equipementTypeId);
-              return (
-                <EquipementLine
-                  key={releve.id}
-                  title={releve.designation || type?.name || "—"}
-                  subtitle={releve.localisation}
-                  etat={releve.etat}
-                  commentaire={releve.commentaire}
-                  photos={photosByReleveId.get(releve.id)}
-                  reglementaire={type?.estReglementaire}
-                />
-              );
-            })}
+            {degrades.map((ligne) => (
+              <EquipementLine key={ligne.id} ligne={ligne} />
+            ))}
           </div>
         </section>
       )}
@@ -591,44 +329,20 @@ export default async function AnalysePage(
             contrat pour qu&apos;ils soient également entretenus.
           </p>
           <div className="flex flex-col gap-2">
-            {horsContrat.map((releve) => {
-              const type = equipementTypeById.get(releve.equipementTypeId);
-              return (
-                <EquipementLine
-                  key={releve.id}
-                  title={releve.designation || type?.name || "—"}
-                  subtitle={releve.localisation}
-                  etat={releve.etat}
-                  commentaire={releve.commentaire}
-                  photos={photosByReleveId.get(releve.id)}
-                  reglementaire={type?.estReglementaire}
-                />
-              );
-            })}
+            {horsContrat.map((ligne) => (
+              <EquipementLine key={ligne.id} ligne={ligne} />
+            ))}
           </div>
         </section>
       )}
 
       {conformes.length > 0 && (
         <section>
-          <h2 className="mb-2 text-sm font-semibold text-emerald-700">
-            Équipements conformes — {conformes.length}
-          </h2>
+          <h2 className="mb-2 text-sm font-semibold text-emerald-700">Équipements conformes — {conformes.length}</h2>
           <div className="flex flex-col gap-2">
-            {conformes.map(({ ce, releve }) => {
-              const type = equipementTypeById.get(ce.equipementTypeId);
-              return (
-                <EquipementLine
-                  key={releve.id}
-                  title={ce.designation || type?.name || "—"}
-                  subtitle={releve.localisation || localisationCe(ce)}
-                  etat={releve.etat}
-                  commentaire={releve.commentaire}
-                  photos={photosByReleveId.get(releve.id)}
-                  reglementaire={type?.estReglementaire}
-                />
-              );
-            })}
+            {conformes.map((ligne) => (
+              <EquipementLine key={ligne.id} ligne={ligne} />
+            ))}
           </div>
         </section>
       )}
