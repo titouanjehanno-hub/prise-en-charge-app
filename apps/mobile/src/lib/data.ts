@@ -193,12 +193,13 @@ export async function getOrCreatePriseEnCharge(contrat: Contrat): Promise<PriseE
   const userId = userData.user?.id;
   if (!userId) throw new Error("Utilisateur non connecté.");
 
+  // On rouvre toujours la dernière prise en charge existante pour ce contrat,
+  // y compris terminée/validée, pour ne jamais perdre l'accès à ses données.
   const { data: existing, error: findError } = await supabase
     .from("prises_en_charge")
     .select("*")
     .eq("contrat_id", contrat.id)
     .eq("technicien_id", userId)
-    .in("statut", ["preparee", "en_cours", "en_pause"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
