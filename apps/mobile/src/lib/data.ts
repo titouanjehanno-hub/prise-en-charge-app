@@ -260,6 +260,8 @@ export interface SaveEquipementReleveInput {
   designation?: string;
   localisation?: string;
   etat?: EquipementReleve["etat"];
+  quantite: number;
+  estEnsemble: boolean;
   plaqueSignaletique: Record<string, string>;
   commentaire?: string;
 }
@@ -275,6 +277,8 @@ export async function saveEquipementReleve(input: SaveEquipementReleveInput): Pr
     designation: input.designation,
     localisation: input.localisation,
     etat: input.etat,
+    quantite: input.quantite,
+    estEnsemble: input.estEnsemble,
     plaqueSignaletique: input.plaqueSignaletique,
     commentaire: input.commentaire,
   };

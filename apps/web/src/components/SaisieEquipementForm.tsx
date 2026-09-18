@@ -52,6 +52,8 @@ export function SaisieEquipementForm({
     equipementReleve?.localisation ?? [ce?.batiment, ce?.etage, ce?.local].filter(Boolean).join(" · "),
   );
   const [etat, setEtat] = useState<EtatEquipement | undefined>(equipementReleve?.etat);
+  const [quantite, setQuantite] = useState(equipementReleve?.quantite ?? ce?.quantite ?? 1);
+  const [estEnsemble, setEstEnsemble] = useState(equipementReleve?.estEnsemble ?? ce?.estEnsemble ?? false);
   const [plaqueValues, setPlaqueValues] = useState<Record<string, string>>(() => {
     const base = { ...(equipementReleve?.plaqueSignaletique ?? {}) };
     if (!equipementReleve && ce?.numeroSerie && !base.numero_serie) base.numero_serie = ce.numeroSerie;
@@ -90,6 +92,8 @@ export function SaisieEquipementForm({
       designation,
       localisation,
       etat,
+      quantite,
+      estEnsemble,
       plaqueSignaletique: plaqueValues,
       commentaire,
     });
@@ -239,6 +243,28 @@ export function SaisieEquipementForm({
             className="rounded-md border border-slate-200 px-3 py-2 placeholder:text-slate-300 focus:border-indigo-300 focus:outline-none"
           />
         </label>
+
+        <div className="flex flex-wrap items-end gap-4">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Quantité</span>
+            <input
+              type="number"
+              min={1}
+              value={quantite}
+              onChange={(e) => setQuantite(Math.max(1, Number(e.target.value) || 1))}
+              className="w-24 rounded-md border border-slate-200 px-3 py-2 focus:border-indigo-300 focus:outline-none"
+            />
+          </label>
+          <label className="flex items-center gap-2 pb-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={estEnsemble}
+              onChange={(e) => setEstEnsemble(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-300"
+            />
+            Traiter comme un ensemble
+          </label>
+        </div>
 
         <div className="flex flex-col gap-1">
           <span className="text-xs font-medium uppercase tracking-wide text-slate-400">État</span>

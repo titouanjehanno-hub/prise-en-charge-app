@@ -224,6 +224,8 @@ function mapEquipementReleve(row: {
   designation: string | null;
   localisation: string | null;
   etat: EquipementReleve["etat"] | null;
+  quantite: number;
+  est_ensemble: boolean;
   plaque_signaletique: Record<string, string> | null;
   commentaire: string | null;
 }): EquipementReleve {
@@ -235,6 +237,8 @@ function mapEquipementReleve(row: {
     estHorsContrat: row.est_hors_contrat,
     designation: row.designation ?? undefined,
     localisation: row.localisation ?? undefined,
+    quantite: row.quantite,
+    estEnsemble: row.est_ensemble,
     etat: row.etat ?? undefined,
     plaqueSignaletique: row.plaque_signaletique ?? {},
     commentaire: row.commentaire ?? undefined,

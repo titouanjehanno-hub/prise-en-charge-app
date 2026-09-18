@@ -15,6 +15,8 @@ function mapEquipementReleveRow(row: {
   designation: string | null;
   localisation: string | null;
   etat: EtatEquipement | null;
+  quantite: number;
+  est_ensemble: boolean;
   plaque_signaletique: Record<string, string> | null;
   commentaire: string | null;
 }): EquipementReleve {
@@ -27,6 +29,8 @@ function mapEquipementReleveRow(row: {
     designation: row.designation ?? undefined,
     localisation: row.localisation ?? undefined,
     etat: row.etat ?? undefined,
+    quantite: row.quantite,
+    estEnsemble: row.est_ensemble,
     plaqueSignaletique: row.plaque_signaletique ?? {},
     commentaire: row.commentaire ?? undefined,
   };
@@ -66,6 +70,8 @@ export interface SaveEquipementReleveInput {
   designation?: string;
   localisation?: string;
   etat?: EtatEquipement;
+  quantite: number;
+  estEnsemble: boolean;
   plaqueSignaletique: Record<string, string>;
   commentaire?: string;
 }
@@ -89,6 +95,8 @@ export async function saveEquipementReleve(input: SaveEquipementReleveInput): Pr
         designation: input.designation || null,
         localisation: input.localisation || null,
         etat: input.etat ?? null,
+        quantite: input.quantite,
+        est_ensemble: input.estEnsemble,
         plaque_signaletique: input.plaqueSignaletique,
         commentaire: input.commentaire || null,
         created_by: userData.user?.id,

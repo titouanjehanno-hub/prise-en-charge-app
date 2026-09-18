@@ -73,6 +73,8 @@ export function getDb(): Promise<SQLite.SQLiteDatabase> {
           designation TEXT,
           localisation TEXT,
           etat TEXT,
+          quantite INTEGER,
+          est_ensemble INTEGER,
           plaque_signaletique TEXT,
           commentaire TEXT,
           deleted INTEGER DEFAULT 0
@@ -106,6 +108,8 @@ export function getDb(): Promise<SQLite.SQLiteDatabase> {
         );
       `);
       await ensureColumn(db, "contrat_equipements", "annee_fabrication", "INTEGER");
+      await ensureColumn(db, "equipements_releves", "quantite", "INTEGER");
+      await ensureColumn(db, "equipements_releves", "est_ensemble", "INTEGER");
       return db;
     });
   }

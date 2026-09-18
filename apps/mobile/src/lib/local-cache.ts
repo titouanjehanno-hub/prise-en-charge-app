@@ -376,10 +376,11 @@ export async function saveEquipementReleveLocal(releve: EquipementReleve): Promi
   const db = await getDb();
   await db.runAsync(
     `INSERT INTO equipements_releves
-     (id, prise_en_charge_id, contrat_equipement_id, equipement_type_id, est_hors_contrat, designation, localisation, etat, plaque_signaletique, commentaire, deleted)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+     (id, prise_en_charge_id, contrat_equipement_id, equipement_type_id, est_hors_contrat, designation, localisation, etat, quantite, est_ensemble, plaque_signaletique, commentaire, deleted)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
      ON CONFLICT(id) DO UPDATE SET designation = excluded.designation, localisation = excluded.localisation,
-       etat = excluded.etat, plaque_signaletique = excluded.plaque_signaletique, commentaire = excluded.commentaire,
+       etat = excluded.etat, quantite = excluded.quantite, est_ensemble = excluded.est_ensemble,
+       plaque_signaletique = excluded.plaque_signaletique, commentaire = excluded.commentaire,
        deleted = 0`,
     releve.id,
     releve.priseEnChargeId,
@@ -389,6 +390,8 @@ export async function saveEquipementReleveLocal(releve: EquipementReleve): Promi
     releve.designation ?? null,
     releve.localisation ?? null,
     releve.etat ?? null,
+    releve.quantite,
+    toInt(releve.estEnsemble),
     JSON.stringify(releve.plaqueSignaletique ?? {}),
     releve.commentaire ?? null,
   );
@@ -401,8 +404,8 @@ export async function cacheEquipementsReleves(pecId: string, items: EquipementRe
     for (const r of items) {
       await db.runAsync(
         `INSERT INTO equipements_releves
-         (id, prise_en_charge_id, contrat_equipement_id, equipement_type_id, est_hors_contrat, designation, localisation, etat, plaque_signaletique, commentaire, deleted)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+         (id, prise_en_charge_id, contrat_equipement_id, equipement_type_id, est_hors_contrat, designation, localisation, etat, quantite, est_ensemble, plaque_signaletique, commentaire, deleted)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
         r.id,
         r.priseEnChargeId,
         r.contratEquipementId ?? null,
@@ -411,6 +414,8 @@ export async function cacheEquipementsReleves(pecId: string, items: EquipementRe
         r.designation ?? null,
         r.localisation ?? null,
         r.etat ?? null,
+        r.quantite,
+        toInt(r.estEnsemble),
         JSON.stringify(r.plaqueSignaletique ?? {}),
         r.commentaire ?? null,
       );
@@ -427,6 +432,8 @@ function mapReleveRow(r: {
   designation: string | null;
   localisation: string | null;
   etat: EquipementReleve["etat"] | null;
+  quantite: number | null;
+  est_ensemble: number | null;
   plaque_signaletique: string | null;
   commentaire: string | null;
 }): EquipementReleve {
@@ -439,6 +446,8 @@ function mapReleveRow(r: {
     designation: r.designation ?? undefined,
     localisation: r.localisation ?? undefined,
     etat: r.etat ?? undefined,
+    quantite: r.quantite ?? 1,
+    estEnsemble: toBool(r.est_ensemble ?? 0),
     plaqueSignaletique: JSON.parse(r.plaque_signaletique || "{}"),
     commentaire: r.commentaire ?? undefined,
   };

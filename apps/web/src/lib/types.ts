@@ -103,6 +103,8 @@ export interface EquipementReleve {
   designation?: string;
   localisation?: string;
   etat?: EtatEquipement;
+  quantite: number;
+  estEnsemble: boolean;
   plaqueSignaletique: Record<string, string>;
   commentaire?: string;
 }

@@ -46,6 +46,8 @@ function EquipementFormContent() {
   const [designation, setDesignation] = useState("");
   const [localisation, setLocalisation] = useState("");
   const [etat, setEtat] = useState<EtatEquipement | undefined>(undefined);
+  const [quantite, setQuantite] = useState(1);
+  const [estEnsemble, setEstEnsemble] = useState(false);
   const [plaqueValues, setPlaqueValues] = useState<Record<string, string>>({});
   const [commentaire, setCommentaire] = useState("");
   const [actionsApe, setActionsApe] = useState<ActionApe[]>([]);
@@ -65,6 +67,8 @@ function EquipementFormContent() {
           setDesignation(releve.designation ?? equipementType?.name ?? "");
           setLocalisation(releve.localisation ?? "");
           setEtat(releve.etat);
+          setQuantite(releve.quantite ?? 1);
+          setEstEnsemble(releve.estEnsemble ?? false);
           setPlaqueValues(releve.plaqueSignaletique ?? {});
           setCommentaire(releve.commentaire ?? "");
           setActionsApe(await getActionsApeParEquipementReleve(releve.id));
@@ -74,6 +78,8 @@ function EquipementFormContent() {
         if (ce) {
           setDesignation(ce.designation || equipementType?.name || "");
           setLocalisation([ce.batiment, ce.etage, ce.local].filter(Boolean).join(" · "));
+          setQuantite(ce.quantite ?? 1);
+          setEstEnsemble(ce.estEnsemble ?? false);
           if (ce.numeroSerie) setPlaqueValues((prev) => ({ ...prev, numero_serie: ce.numeroSerie! }));
           if (ce.anneeFabrication) {
             setPlaqueValues((prev) => ({ ...prev, annee_fabrication: String(ce.anneeFabrication) }));
@@ -102,6 +108,8 @@ function EquipementFormContent() {
       designation,
       localisation,
       etat,
+      quantite,
+      estEnsemble,
       plaqueSignaletique: plaqueValues,
       commentaire,
     });
@@ -155,6 +163,26 @@ function EquipementFormContent() {
         onChangeText={setLocalisation}
         placeholder="ex : Bâtiment A · R+2 · Local technique"
       />
+
+      <View style={styles.quantiteRow}>
+        <View style={styles.quantiteField}>
+          <Text style={styles.sectionLabel}>Quantité</Text>
+          <TextInput
+            style={styles.input}
+            value={String(quantite)}
+            onChangeText={(v) => setQuantite(Math.max(1, Number(v.replace(/[^0-9]/g, "")) || 1))}
+            keyboardType="numeric"
+          />
+        </View>
+        <Pressable
+          style={[styles.chip, styles.ensembleChip, estEnsemble && styles.chipActive]}
+          onPress={() => setEstEnsemble((v) => !v)}
+        >
+          <Text style={[styles.chipText, estEnsemble && styles.chipTextActive]}>
+            {estEnsemble ? "☑" : "☐"} Ensemble
+          </Text>
+        </Pressable>
+      </View>
 
       <Text style={styles.sectionLabel}>État</Text>
       <View style={styles.chipsRow}>
@@ -246,6 +274,9 @@ const styles = StyleSheet.create({
   container: { padding: 16, gap: 6, backgroundColor: "#f8fafc", paddingBottom: 48 },
   sectionLabel: { fontSize: 12, fontWeight: "700", color: "#64748b", textTransform: "uppercase", marginTop: 14 },
   typeName: { fontSize: 16, fontWeight: "600", color: "#0f172a" },
+  quantiteRow: { flexDirection: "row", alignItems: "flex-end", gap: 12 },
+  quantiteField: { width: 100 },
+  ensembleChip: { marginBottom: 1 },
   input: {
     borderWidth: 1,
     borderColor: "#e2e8f0",
