@@ -10,6 +10,7 @@ import {
   saveEquipementReleve,
   uploadPhoto,
 } from "@/app/contrats/[id]/prises-en-charge/[pecId]/saisie/actions";
+import { ContratNav } from "@/components/ContratNav";
 import type { PlaqueGuess } from "@/lib/plaque-ocr";
 import type { ActionApe, ContratEquipement, EquipementReleve, EquipementType, EtatEquipement, Photo } from "@/lib/types";
 
@@ -217,6 +218,7 @@ export function SaisieEquipementForm({
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5">
+      <ContratNav contratId={contratId} pecId={priseEnChargeId} active="saisie" />
       <div>
         <p className="text-xs font-medium uppercase tracking-wide text-indigo-600">{type.name}</p>
         <h1 className="text-xl font-semibold text-slate-900">{designation || type.name}</h1>

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { ContratNav } from "@/components/ContratNav";
 import { PreparationScreen } from "@/components/PreparationScreen";
 import { getClient, getContrat, getContratEquipements, getReferentiel, getSite } from "@/lib/data";
 
@@ -19,13 +20,16 @@ export default async function PreparationPage(
   if (!client || !site) notFound();
 
   return (
-    <PreparationScreen
-      contrat={contrat}
-      client={client}
-      site={site}
-      lotsTechniques={lotsTechniques}
-      equipementTypes={equipementTypes}
-      initialContratEquipements={initialContratEquipements}
-    />
+    <div className="flex flex-col gap-4">
+      <ContratNav contratId={id} active="preparation" />
+      <PreparationScreen
+        contrat={contrat}
+        client={client}
+        site={site}
+        lotsTechniques={lotsTechniques}
+        equipementTypes={equipementTypes}
+        initialContratEquipements={initialContratEquipements}
+      />
+    </div>
   );
 }

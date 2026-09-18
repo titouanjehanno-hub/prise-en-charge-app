@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { mettreEnPause, reprendre, terminer } from "@/app/contrats/[id]/prises-en-charge/[pecId]/saisie/actions";
+import { ContratNav } from "@/components/ContratNav";
 import type {
   Contrat,
   ContratEquipement,
@@ -182,6 +182,7 @@ export function SaisieListClient({
 
   return (
     <div className="flex flex-col gap-4">
+      <ContratNav contratId={contratId} pecId={priseEnCharge.id} active="saisie" />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-indigo-600">{contrat.reference}</p>
@@ -350,13 +351,6 @@ export function SaisieListClient({
           </button>
         </div>
       )}
-
-      <Link
-        href={`/contrats/${contratId}/prises-en-charge/${priseEnCharge.id}`}
-        className="text-center text-xs text-slate-400 hover:text-slate-600"
-      >
-        Voir l&apos;analyse de cette prise en charge
-      </Link>
     </div>
   );
 }

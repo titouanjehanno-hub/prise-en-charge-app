@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { validerPriseEnCharge } from "@/app/contrats/[id]/prises-en-charge/[pecId]/actions";
 import { updateActionMaintenance } from "@/app/contrats/[id]/plan-action/actions";
 import { AnalyseSynthese } from "@/components/AnalyseSynthese";
+import { ContratNav } from "@/components/ContratNav";
 import { EquipementLigneCard } from "@/components/EquipementLigneCard";
 import { PropositionsIngenieur } from "@/components/PropositionsIngenieur";
 import type { PlanActionItem, RapportAnalyse } from "@/lib/rapport";
@@ -137,6 +138,7 @@ export function AnalyseContent({ contratId: id, pecId, rapport }: AnalyseContent
 
   return (
     <div className="flex flex-col gap-6">
+      <ContratNav contratId={id} pecId={pecId} active="analyse" />
       <header className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>

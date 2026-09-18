@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { updateActionMaintenance } from "@/app/contrats/[id]/plan-action/actions";
+import { ContratNav } from "@/components/ContratNav";
 import type { ActionMaintenance, CategorieAction, Client, Contrat, PrioriteRegle, Site, StatutAction } from "@/lib/types";
 
 const CATEGORIE_LABEL: Record<CategorieAction, string> = {
@@ -103,6 +104,7 @@ export function PlanActionClient({ contratId, contrat, client, site, initialActi
 
   return (
     <div className="flex flex-col gap-4">
+      <ContratNav contratId={contratId} active="analyse" />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-indigo-600">{contrat.reference}</p>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ContratNav } from "@/components/ContratNav";
 import { NouvellePriseEnChargeButton } from "@/components/NouvellePriseEnChargeButton";
 import { getContrat, getPrisesEnChargePourContrat } from "@/lib/data";
 
@@ -22,6 +23,7 @@ export default async function PrisesEnChargePage(
 
   return (
     <div className="flex flex-col gap-4">
+      <ContratNav contratId={id} active="saisie" />
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-indigo-600">{contrat.reference}</p>
