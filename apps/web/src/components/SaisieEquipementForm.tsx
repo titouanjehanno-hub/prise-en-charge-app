@@ -70,6 +70,7 @@ export function SaisieEquipementForm({
   const [isScanning, setIsScanning] = useState(false);
   const [ocrText, setOcrText] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<Record<string, PlaqueGuess> | null>(null);
+  const [showScanModal, setShowScanModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -161,6 +162,7 @@ export function SaisieEquipementForm({
       const result = await reconnaitrePlaque(ocrForm);
       setOcrText(result.rawText || "Aucun texte détecté sur cette photo.");
       setSuggestions(Object.keys(result.guesses).length > 0 ? result.guesses : null);
+      setShowScanModal(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de scanner cette plaque.");
     } finally {
@@ -309,55 +311,6 @@ export function SaisieEquipementForm({
               />
             </div>
 
-            {suggestions && (
-              <div className="flex flex-col gap-2 rounded-md border border-indigo-100 bg-indigo-50/60 p-3">
-                <p className="text-xs font-medium text-indigo-700">
-                  Valeurs détectées — vérifie avant d&apos;accepter :
-                </p>
-                {Object.entries(suggestions).map(([key, guess]) => {
-                  const champ = type.plaqueSignaletiqueSchema.find((c) => c.key === key);
-                  return (
-                    <div key={key} className="flex items-center justify-between gap-2 rounded-md bg-white px-3 py-2 text-sm">
-                      <div>
-                        <span className="text-slate-500">{champ?.label ?? key} : </span>
-                        <span className="font-medium text-slate-800">
-                          {guess.value}
-                          {champ?.unit ? ` ${champ.unit}` : ""}
-                        </span>
-                        <span className="ml-2 text-xs text-slate-400">
-                          confiance {Math.round(guess.confidence * 100)}%
-                        </span>
-                      </div>
-                      <div className="flex shrink-0 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => acceptSuggestion(key)}
-                          className="rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-500"
-                        >
-                          Utiliser
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => ignoreSuggestion(key)}
-                          className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50"
-                        >
-                          Ignorer
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {ocrText && (
-              <details className="rounded-md border border-slate-100 bg-slate-50 p-2 text-xs text-slate-500">
-                <summary className="cursor-pointer font-medium text-slate-600">
-                  Texte détecté sur la photo (à vérifier)
-                </summary>
-                <pre className="mt-2 whitespace-pre-wrap font-sans">{ocrText}</pre>
-              </details>
-            )}
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {type.plaqueSignaletiqueSchema.map((champ) => (
@@ -455,6 +408,89 @@ export function SaisieEquipementForm({
           {isSaving ? "Enregistrement..." : "Enregistrer"}
         </button>
       </div>
+
+      {showScanModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          onClick={() => setShowScanModal(false)}
+        >
+          <div
+            className="flex max-h-[85vh] w-full max-w-lg flex-col gap-3 overflow-y-auto rounded-lg bg-white p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-900">Plaque signalétique scannée</h2>
+              <button
+                type="button"
+                onClick={() => setShowScanModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+                aria-label="Fermer"
+              >
+                ×
+              </button>
+            </div>
+
+            {suggestions && Object.keys(suggestions).length > 0 ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-slate-500">Vérifie chaque valeur détectée avant de l&apos;accepter :</p>
+                {Object.entries(suggestions).map(([key, guess]) => {
+                  const champ = type.plaqueSignaletiqueSchema.find((c) => c.key === key);
+                  return (
+                    <div
+                      key={key}
+                      className="flex items-center justify-between gap-2 rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-sm"
+                    >
+                      <div>
+                        <p className="text-xs text-slate-400">{champ?.label ?? key}</p>
+                        <p className="font-medium text-slate-800">
+                          {guess.value}
+                          {champ?.unit ? ` ${champ.unit}` : ""}
+                          <span className="ml-2 rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700">
+                            {Math.round(guess.confidence * 100)}%
+                          </span>
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => acceptSuggestion(key)}
+                          className="rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-500"
+                        >
+                          Utiliser
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => ignoreSuggestion(key)}
+                          className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50"
+                        >
+                          Ignorer
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Aucune valeur n&apos;a pu être reconnue automatiquement sur cette photo.</p>
+            )}
+
+            {ocrText && (
+              <details className="rounded-md border border-slate-100 bg-slate-50 p-2 text-xs text-slate-500">
+                <summary className="cursor-pointer font-medium text-slate-600">Texte brut détecté sur la photo</summary>
+                <pre className="mt-2 whitespace-pre-wrap font-sans">{ocrText}</pre>
+              </details>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowScanModal(false)}
+              className="mt-1 rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
