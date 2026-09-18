@@ -35,33 +35,57 @@ export async function callGoogleVisionOcr(base64Image: string): Promise<string> 
 }
 
 const YEAR_RE = /\b(19[5-9]\d|20[0-3]\d)\b/;
+const YEAR_CONTEXT_RE = /(ann[ée]e|fabrication|year|date)[^0-9]{0,20}(19[5-9]\d|20[0-3]\d)/i;
 const SERIAL_RE = /(?:n[°o]?|s\/n|sn|ser(?:ial)?)\s*[:.]?\s*([a-z0-9][a-z0-9\-./]{3,})/i;
 
-function guessMeasurement(text: string, unit: string): string | undefined {
+export interface PlaqueGuess {
+  value: string;
+  /** Confiance heuristique (0-1) : ce n'est pas un score d'IA, juste un indice
+   * de fiabilité du motif utilisé (contexte trouvé ou non, format attendu...). */
+  confidence: number;
+}
+
+function guessAnnee(text: string): PlaqueGuess | undefined {
+  const withContext = YEAR_CONTEXT_RE.exec(text);
+  if (withContext) return { value: withContext[2], confidence: 0.85 };
+  const bare = YEAR_RE.exec(text);
+  if (bare) return { value: bare[1], confidence: 0.45 };
+  return undefined;
+}
+
+function guessSerial(text: string): PlaqueGuess | undefined {
+  const match = SERIAL_RE.exec(text);
+  if (!match) return undefined;
+  const value = match[1].toUpperCase();
+  const looksSolid = /[0-9]/.test(value) && /[A-Z]/.test(value) && value.length >= 5;
+  return { value, confidence: looksSolid ? 0.8 : 0.6 };
+}
+
+function guessMeasurement(text: string, unit: string): PlaqueGuess | undefined {
   const escapedUnit = unit.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const re = new RegExp(`([0-9]+(?:[.,][0-9]+)?)\\s*${escapedUnit}\\b`, "i");
   const match = re.exec(text);
-  return match ? match[1].replace(",", ".") : undefined;
+  if (!match) return undefined;
+  return { value: match[1].replace(",", "."), confidence: 0.75 };
 }
 
-// Retourne uniquement des suggestions pour des champs vides côté formulaire :
-// à l'appelant de ne pas écraser une valeur déjà saisie.
+// Ne renvoie que des suggestions : c'est à la personne qui saisit de
+// choisir, champ par champ, de les accepter ou de les ignorer.
 export function guessPlaqueValues(
   schema: PlaqueSignaletiqueChamp[],
   rawText: string,
-): Record<string, string> {
-  const guesses: Record<string, string> = {};
+): Record<string, PlaqueGuess> {
+  const guesses: Record<string, PlaqueGuess> = {};
   for (const champ of schema) {
+    let guess: PlaqueGuess | undefined;
     if (champ.type === "number" && /annee/i.test(champ.key)) {
-      const match = YEAR_RE.exec(rawText);
-      if (match) guesses[champ.key] = match[1];
+      guess = guessAnnee(rawText);
     } else if (champ.type === "text" && /(numero_serie|num_serie|numero_installation)/i.test(champ.key)) {
-      const match = SERIAL_RE.exec(rawText);
-      if (match) guesses[champ.key] = match[1].toUpperCase();
+      guess = guessSerial(rawText);
     } else if (champ.type === "number" && champ.unit) {
-      const value = guessMeasurement(rawText, champ.unit);
-      if (value) guesses[champ.key] = value;
+      guess = guessMeasurement(rawText, champ.unit);
     }
+    if (guess) guesses[champ.key] = guess;
   }
   return guesses;
 }

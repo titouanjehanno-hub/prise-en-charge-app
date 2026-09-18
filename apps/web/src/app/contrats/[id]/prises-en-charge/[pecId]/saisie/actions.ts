@@ -3,7 +3,7 @@
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { callGoogleVisionOcr, guessPlaqueValues } from "@/lib/plaque-ocr";
+import { callGoogleVisionOcr, guessPlaqueValues, type PlaqueGuess } from "@/lib/plaque-ocr";
 import type { EquipementReleve, EtatEquipement, Photo, PhotoType, PlaqueSignaletiqueChamp } from "@/lib/types";
 
 function mapEquipementReleveRow(row: {
@@ -193,7 +193,7 @@ export async function deleteActionApe(id: string): Promise<void> {
 
 export interface ReconnaissancePlaqueResult {
   rawText: string;
-  guesses: Record<string, string>;
+  guesses: Record<string, PlaqueGuess>;
 }
 
 export async function reconnaitrePlaque(formData: FormData): Promise<ReconnaissancePlaqueResult> {
