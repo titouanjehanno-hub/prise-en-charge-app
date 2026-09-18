@@ -111,20 +111,26 @@ export function mapContratEquipement(row: {
 export interface ContratListItem extends Contrat {
   clientName: string;
   siteName: string;
+  dernierePriseEnChargeId?: string;
 }
 
 export async function getContratsWithRelations(): Promise<ContratListItem[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("contrats")
-    .select("*, clients(name), sites(name)")
+    .select("*, clients(name), sites(name), prises_en_charge(id, created_at)")
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
-  return (data ?? []).map((row) => ({
-    ...mapContrat(row),
-    clientName: (row.clients as { name: string } | null)?.name ?? "—",
-    siteName: (row.sites as { name: string } | null)?.name ?? "—",
-  }));
+  return (data ?? []).map((row) => {
+    const prisesEnCharge = (row.prises_en_charge as { id: string; created_at: string }[] | null) ?? [];
+    const derniere = prisesEnCharge.sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0];
+    return {
+      ...mapContrat(row),
+      clientName: (row.clients as { name: string } | null)?.name ?? "—",
+      siteName: (row.sites as { name: string } | null)?.name ?? "—",
+      dernierePriseEnChargeId: derniere?.id,
+    };
+  });
 }
 
 export async function getContrat(contratId: string): Promise<Contrat | undefined> {
