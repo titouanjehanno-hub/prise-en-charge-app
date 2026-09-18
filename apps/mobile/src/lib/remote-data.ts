@@ -68,6 +68,7 @@ function mapContratEquipement(row: {
   est_ensemble: boolean;
   reference_contractuelle: string | null;
   numero_serie: string | null;
+  annee_fabrication: number | null;
   notes: string | null;
 }): ContratEquipement {
   return {
@@ -82,6 +83,7 @@ function mapContratEquipement(row: {
     estEnsemble: row.est_ensemble,
     referenceContractuelle: row.reference_contractuelle ?? undefined,
     numeroSerie: row.numero_serie ?? undefined,
+    anneeFabrication: row.annee_fabrication ?? undefined,
     notes: row.notes ?? undefined,
   };
 }

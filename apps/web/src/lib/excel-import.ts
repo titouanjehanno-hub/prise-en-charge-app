@@ -11,6 +11,7 @@ const HEADERS = [
   "Ensemble (oui/non)",
   "Référence contractuelle",
   "Numéro de série",
+  "Année de fabrication",
   "Commentaire",
 ] as const;
 
@@ -27,6 +28,7 @@ export interface ImportPreviewRow {
   estEnsemble: boolean;
   referenceContractuelle: string;
   numeroSerie: string;
+  anneeFabrication: string;
   notes: string;
   matchedType?: EquipementType;
   status: ImportRowStatus;
@@ -78,7 +80,8 @@ export async function parseContratEquipementsFile(
     const estEnsemble = parseBoolean(normalize(row[HEADERS[6]]));
     const referenceContractuelle = normalize(row[HEADERS[7]]);
     const numeroSerie = normalize(row[HEADERS[8]]);
-    const notes = normalize(row[HEADERS[9]]);
+    const anneeFabrication = normalize(row[HEADERS[9]]);
+    const notes = normalize(row[HEADERS[10]]);
 
     const matchedType = findEquipementType(typeInput, equipementTypes);
     const quantiteValide = quantiteRaw === "" || (/^\d+$/.test(quantiteRaw) && Number(quantiteRaw) > 0);
@@ -98,6 +101,7 @@ export async function parseContratEquipementsFile(
       estEnsemble,
       referenceContractuelle,
       numeroSerie,
+      anneeFabrication,
       notes,
       matchedType,
       status,
@@ -119,6 +123,7 @@ export function toNewEquipementInput(row: ImportPreviewRow): NewContratEquipemen
     estEnsemble: row.estEnsemble,
     referenceContractuelle: row.referenceContractuelle || undefined,
     numeroSerie: row.numeroSerie || undefined,
+    anneeFabrication: row.anneeFabrication && /^\d+$/.test(row.anneeFabrication) ? Number(row.anneeFabrication) : undefined,
     notes: row.notes || undefined,
   };
 }
@@ -140,6 +145,7 @@ export function downloadImportTemplate(
       [HEADERS[7]]: "LOT-01",
       [HEADERS[8]]: "",
       [HEADERS[9]]: "",
+      [HEADERS[10]]: "",
     },
   ];
   const importSheet = XLSX.utils.json_to_sheet(exampleRows, { header: [...HEADERS] });
@@ -153,6 +159,7 @@ export function downloadImportTemplate(
     { wch: 16 },
     { wch: 20 },
     { wch: 18 },
+    { wch: 14 },
     { wch: 28 },
   ];
 

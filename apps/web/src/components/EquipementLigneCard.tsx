@@ -38,8 +38,27 @@ export function EquipementLigneCard({ ligne }: { ligne: EquipementLigne }) {
                 Attention
               </span>
             )}
+            {ligne.dureeVie?.statut === "fin_de_vie" && (
+              <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-orange-700">
+                Fin de vie atteinte
+              </span>
+            )}
+            {ligne.dureeVie?.statut === "a_prevoir" && (
+              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700">
+                Fin de vie proche
+              </span>
+            )}
           </div>
           {ligne.subtitle && <p className="text-xs text-slate-400">{ligne.subtitle}</p>}
+          {ligne.dureeVie && (
+            <p className="mt-0.5 text-xs text-slate-400">
+              Fabriqué en {ligne.dureeVie.anneeFabrication} ({ligne.dureeVie.ageAns} ans) · durée de vie estimée{" "}
+              {ligne.dureeVie.dureeVieTheoriqueAnnees} ans ·{" "}
+              {ligne.dureeVie.anneesRestantes > 0
+                ? `${ligne.dureeVie.anneesRestantes} an(s) restant(s) estimé(s)`
+                : "durée de vie théorique dépassée"}
+            </p>
+          )}
         </div>
         {ligne.etat && (
           <span className={`whitespace-nowrap rounded px-2 py-1 text-xs font-medium ${ETAT_COLOR[ligne.etat] ?? "bg-slate-100 text-slate-600"}`}>

@@ -76,6 +76,7 @@ export function PreparationScreen({
         estEnsemble: current.estEnsemble,
         referenceContractuelle: current.referenceContractuelle,
         numeroSerie: current.numeroSerie,
+        anneeFabrication: current.anneeFabrication,
         notes: current.notes,
       });
     } catch {
@@ -240,6 +241,7 @@ export function PreparationScreen({
                             <th className="min-w-[70px] px-3 py-2 font-medium text-center">Ensemble</th>
                             <th className="min-w-[140px] px-3 py-2 font-medium">Réf. contractuelle</th>
                             <th className="min-w-[140px] px-3 py-2 font-medium">N° de série</th>
+                            <th className="min-w-[110px] px-3 py-2 font-medium">Année fabr.</th>
                             <th className="min-w-[160px] px-3 py-2 font-medium">Commentaire</th>
                             <th className="px-3 py-2" />
                           </tr>
@@ -321,6 +323,20 @@ export function PreparationScreen({
                                   onChange={(e) => updateLocal(item.id, { numeroSerie: e.target.value })}
                                   onBlur={() => commitUpdate(item.id, item)}
                                   placeholder="ex : SN123456"
+                                  className="w-full rounded border border-transparent bg-transparent px-2 py-1 placeholder:text-slate-300 hover:border-slate-200 focus:border-indigo-300 focus:outline-none"
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="number"
+                                  value={item.anneeFabrication ?? ""}
+                                  onChange={(e) =>
+                                    updateLocal(item.id, {
+                                      anneeFabrication: e.target.value ? Number(e.target.value) : undefined,
+                                    })
+                                  }
+                                  onBlur={() => commitUpdate(item.id, item)}
+                                  placeholder="ex : 2015"
                                   className="w-full rounded border border-transparent bg-transparent px-2 py-1 placeholder:text-slate-300 hover:border-slate-200 focus:border-indigo-300 focus:outline-none"
                                 />
                               </td>

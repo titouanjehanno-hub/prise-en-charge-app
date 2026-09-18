@@ -42,6 +42,8 @@ const styles = StyleSheet.create({
   tag: { fontSize: 6.5, paddingHorizontal: 4, paddingVertical: 1, borderRadius: 2, fontWeight: 700 },
   tagReglementaire: { backgroundColor: "#dbeafe", color: "#1d4ed8" },
   tagAttention: { backgroundColor: "#fee2e2", color: "#b91c1c" },
+  tagFinDeVie: { backgroundColor: "#ffedd5", color: "#c2410c" },
+  tagFinDeVieProche: { backgroundColor: "#fef3c7", color: "#b45309" },
   etatBadge: { fontSize: 8, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 3 },
   photosRow: { flexDirection: "row", gap: 4, marginTop: 4, flexWrap: "wrap" },
   photo: { width: 60, height: 60, borderRadius: 3 },
@@ -85,8 +87,23 @@ function EquipementLineView({ ligne }: { ligne: EquipementLigne }) {
             <Text style={styles.lineTitle}>{ligne.title}</Text>
             {ligne.reglementaire && <Text style={[styles.tag, styles.tagReglementaire]}>RÉGLEMENTAIRE</Text>}
             {ligne.attention && <Text style={[styles.tag, styles.tagAttention]}>ATTENTION</Text>}
+            {ligne.dureeVie?.statut === "fin_de_vie" && (
+              <Text style={[styles.tag, styles.tagFinDeVie]}>FIN DE VIE ATTEINTE</Text>
+            )}
+            {ligne.dureeVie?.statut === "a_prevoir" && (
+              <Text style={[styles.tag, styles.tagFinDeVieProche]}>FIN DE VIE PROCHE</Text>
+            )}
           </View>
           {ligne.subtitle && <Text style={styles.lineSubtitle}>{ligne.subtitle}</Text>}
+          {ligne.dureeVie && (
+            <Text style={styles.lineSubtitle}>
+              Fabriqué en {ligne.dureeVie.anneeFabrication} ({ligne.dureeVie.ageAns} ans) · durée de vie estimée{" "}
+              {ligne.dureeVie.dureeVieTheoriqueAnnees} ans ·{" "}
+              {ligne.dureeVie.anneesRestantes > 0
+                ? `${ligne.dureeVie.anneesRestantes} an(s) restant(s) estimé(s)`
+                : "durée de vie théorique dépassée"}
+            </Text>
+          )}
         </View>
         {ligne.etat && (
           <Text
@@ -206,6 +223,10 @@ export function RapportDocument({ rapport }: { rapport: RapportAnalyse }) {
           <View style={styles.statBox}>
             <Text style={styles.statLabel}>Plan d&apos;action</Text>
             <Text style={styles.statValue}>{stats.nbPlanAction}</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>Fin de vie proche/atteinte</Text>
+            <Text style={styles.statValue}>{stats.nbFinDeVie}</Text>
           </View>
         </View>
 

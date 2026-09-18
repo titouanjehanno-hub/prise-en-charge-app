@@ -21,6 +21,7 @@ export interface EquipementType {
   name: string;
   plaqueSignaletiqueSchema: PlaqueSignaletiqueChamp[];
   estReglementaire: boolean;
+  dureeVieTheoriqueAnnees?: number;
 }
 
 export interface Client {
@@ -58,6 +59,7 @@ export interface ContratEquipement {
   estEnsemble: boolean;
   referenceContractuelle?: string;
   numeroSerie?: string;
+  anneeFabrication?: number;
   notes?: string;
 }
 
@@ -71,6 +73,7 @@ export interface NewContratEquipementInput {
   estEnsemble?: boolean;
   referenceContractuelle?: string;
   numeroSerie?: string;
+  anneeFabrication?: number;
   notes?: string;
 }
 

@@ -174,8 +174,8 @@ export async function cacheContratEquipements(contratId: string, items: ContratE
     for (const ce of items) {
       await db.runAsync(
         `INSERT INTO contrat_equipements
-         (id, contrat_id, equipement_type_id, designation, batiment, etage, local, quantite, est_ensemble, reference_contractuelle, numero_serie, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, contrat_id, equipement_type_id, designation, batiment, etage, local, quantite, est_ensemble, reference_contractuelle, numero_serie, annee_fabrication, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         ce.id,
         ce.contratId,
         ce.equipementTypeId,
@@ -187,6 +187,7 @@ export async function cacheContratEquipements(contratId: string, items: ContratE
         toInt(ce.estEnsemble),
         ce.referenceContractuelle ?? null,
         ce.numeroSerie ?? null,
+        ce.anneeFabrication ?? null,
         ce.notes ?? null,
       );
     }
@@ -207,6 +208,7 @@ export async function readLocalContratEquipements(contratId: string): Promise<Co
     est_ensemble: number;
     reference_contractuelle: string | null;
     numero_serie: string | null;
+    annee_fabrication: number | null;
     notes: string | null;
   }>("SELECT * FROM contrat_equipements WHERE contrat_id = ?", contratId);
   return rows.map((r) => ({
@@ -221,6 +223,7 @@ export async function readLocalContratEquipements(contratId: string): Promise<Co
     estEnsemble: toBool(r.est_ensemble),
     referenceContractuelle: r.reference_contractuelle ?? undefined,
     numeroSerie: r.numero_serie ?? undefined,
+    anneeFabrication: r.annee_fabrication ?? undefined,
     notes: r.notes ?? undefined,
   }));
 }
@@ -239,6 +242,7 @@ export async function readLocalContratEquipement(id: string): Promise<ContratEqu
     est_ensemble: number;
     reference_contractuelle: string | null;
     numero_serie: string | null;
+    annee_fabrication: number | null;
     notes: string | null;
   }>("SELECT * FROM contrat_equipements WHERE id = ?", id);
   if (!r) return undefined;
@@ -254,6 +258,7 @@ export async function readLocalContratEquipement(id: string): Promise<ContratEqu
     estEnsemble: toBool(r.est_ensemble),
     referenceContractuelle: r.reference_contractuelle ?? undefined,
     numeroSerie: r.numero_serie ?? undefined,
+    anneeFabrication: r.annee_fabrication ?? undefined,
     notes: r.notes ?? undefined,
   };
 }

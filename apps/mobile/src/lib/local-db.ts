@@ -50,6 +50,7 @@ export function getDb(): Promise<SQLite.SQLiteDatabase> {
           est_ensemble INTEGER,
           reference_contractuelle TEXT,
           numero_serie TEXT,
+          annee_fabrication INTEGER,
           notes TEXT
         );
 
@@ -104,10 +105,25 @@ export function getDb(): Promise<SQLite.SQLiteDatabase> {
           created_at TEXT NOT NULL
         );
       `);
+      await ensureColumn(db, "contrat_equipements", "annee_fabrication", "INTEGER");
       return db;
     });
   }
   return dbPromise;
+}
+
+// CREATE TABLE IF NOT EXISTS ne rattrape pas les colonnes ajoutées après coup
+// sur une base déjà créée sur l'appareil : on les ajoute explicitement ici.
+async function ensureColumn(
+  db: SQLite.SQLiteDatabase,
+  table: string,
+  column: string,
+  type: string,
+): Promise<void> {
+  const columns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+  if (!columns.some((c) => c.name === column)) {
+    await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  }
 }
 
 export async function kvGet(key: string): Promise<string | undefined> {

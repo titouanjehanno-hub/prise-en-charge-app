@@ -75,6 +75,9 @@ function EquipementFormContent() {
           setDesignation(ce.designation || equipementType?.name || "");
           setLocalisation([ce.batiment, ce.etage, ce.local].filter(Boolean).join(" · "));
           if (ce.numeroSerie) setPlaqueValues((prev) => ({ ...prev, numero_serie: ce.numeroSerie! }));
+          if (ce.anneeFabrication) {
+            setPlaqueValues((prev) => ({ ...prev, annee_fabrication: String(ce.anneeFabrication) }));
+          }
         }
       } else {
         setDesignation(equipementType?.name ?? "");

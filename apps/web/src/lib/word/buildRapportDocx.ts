@@ -34,6 +34,8 @@ async function equipementLigneParagraphs(ligne: EquipementLigne): Promise<Paragr
   const tags: string[] = [];
   if (ligne.reglementaire) tags.push("RÉGLEMENTAIRE");
   if (ligne.attention) tags.push("ATTENTION");
+  if (ligne.dureeVie?.statut === "fin_de_vie") tags.push("FIN DE VIE ATTEINTE");
+  if (ligne.dureeVie?.statut === "a_prevoir") tags.push("FIN DE VIE PROCHE");
 
   const titleRuns: TextRun[] = [new TextRun({ text: ligne.title, bold: true })];
   if (tags.length > 0) {
@@ -54,6 +56,13 @@ async function equipementLigneParagraphs(ligne: EquipementLigne): Promise<Paragr
   if (ligne.plaque.length > 0) {
     const plaqueText = ligne.plaque.map((c) => `${c.label} : ${c.value}${c.unit ? ` ${c.unit}` : ""}`).join("  ·  ");
     paragraphs.push(new Paragraph({ children: [new TextRun({ text: plaqueText, size: 18, italics: true })] }));
+  }
+  if (ligne.dureeVie) {
+    const dv = ligne.dureeVie;
+    const dureeVieText = `Fabriqué en ${dv.anneeFabrication} (${dv.ageAns} ans) · durée de vie estimée ${dv.dureeVieTheoriqueAnnees} ans · ${
+      dv.anneesRestantes > 0 ? `${dv.anneesRestantes} an(s) restant(s) estimé(s)` : "durée de vie théorique dépassée"
+    }`;
+    paragraphs.push(new Paragraph({ children: [new TextRun({ text: dureeVieText, size: 18, italics: true })] }));
   }
 
   for (const photo of ligne.photos.slice(0, 2)) {
@@ -121,6 +130,7 @@ export async function buildRapportDocx(rapport: RapportAnalyse): Promise<Buffer>
     ["Non trouvés", stats.nbNonTrouves],
     ["Hors contrat", stats.nbHorsContrat],
     ["Plan d'action", stats.nbPlanAction],
+    ["Fin de vie proche/atteinte", stats.nbFinDeVie],
   ];
   for (const [label, value] of statPairs) {
     children.push(

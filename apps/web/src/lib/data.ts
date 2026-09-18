@@ -26,6 +26,7 @@ function mapType(row: {
   name: string;
   plaque_signaletique_schema: EquipementType["plaqueSignaletiqueSchema"];
   est_reglementaire: boolean;
+  duree_vie_theorique_annees: number | null;
 }): EquipementType {
   return {
     id: row.id,
@@ -34,6 +35,7 @@ function mapType(row: {
     name: row.name,
     plaqueSignaletiqueSchema: row.plaque_signaletique_schema ?? [],
     estReglementaire: row.est_reglementaire,
+    dureeVieTheoriqueAnnees: row.duree_vie_theorique_annees ?? undefined,
   };
 }
 
@@ -82,6 +84,7 @@ export function mapContratEquipement(row: {
   est_ensemble: boolean;
   reference_contractuelle: string | null;
   numero_serie: string | null;
+  annee_fabrication: number | null;
   notes: string | null;
 }): ContratEquipement {
   return {
@@ -96,6 +99,7 @@ export function mapContratEquipement(row: {
     estEnsemble: row.est_ensemble,
     referenceContractuelle: row.reference_contractuelle ?? undefined,
     numeroSerie: row.numero_serie ?? undefined,
+    anneeFabrication: row.annee_fabrication ?? undefined,
     notes: row.notes ?? undefined,
   };
 }

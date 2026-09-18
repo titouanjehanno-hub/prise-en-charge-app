@@ -42,6 +42,7 @@ export async function updateContratEquipement(
     estEnsemble?: boolean;
     referenceContractuelle?: string;
     numeroSerie?: string;
+    anneeFabrication?: number;
     notes?: string;
   },
 ): Promise<void> {
@@ -57,6 +58,7 @@ export async function updateContratEquipement(
     dbPatch.reference_contractuelle = patch.referenceContractuelle || null;
   }
   if (patch.numeroSerie !== undefined) dbPatch.numero_serie = patch.numeroSerie || null;
+  if (patch.anneeFabrication !== undefined) dbPatch.annee_fabrication = patch.anneeFabrication || null;
   if (patch.notes !== undefined) dbPatch.notes = patch.notes || null;
 
   const { error } = await supabase.from("contrat_equipements").update(dbPatch).eq("id", id);
@@ -90,6 +92,7 @@ export async function bulkAddContratEquipements(
     est_ensemble: item.estEnsemble ?? false,
     reference_contractuelle: item.referenceContractuelle || null,
     numero_serie: item.numeroSerie || null,
+    annee_fabrication: item.anneeFabrication || null,
     notes: item.notes || null,
   }));
 

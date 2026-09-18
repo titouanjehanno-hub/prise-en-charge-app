@@ -49,6 +49,7 @@ export interface ContratEquipement {
   estEnsemble: boolean;
   referenceContractuelle?: string;
   numeroSerie?: string;
+  anneeFabrication?: number;
   notes?: string;
 }
 

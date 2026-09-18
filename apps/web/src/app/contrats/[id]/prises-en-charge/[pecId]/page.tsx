@@ -133,6 +133,7 @@ export default async function AnalysePage(
         <StatCard label="Hors contrat" value={stats.nbHorsContrat} color="text-indigo-600" />
         <StatCard label="Plan d'action" value={stats.nbPlanAction} color="text-red-600" />
         <StatCard label="Actions énergétiques suggérées" value={stats.nbRecommandationsEnergie} color="text-teal-600" />
+        <StatCard label="Fin de vie proche/atteinte" value={stats.nbFinDeVie} color="text-orange-600" />
       </div>
 
       {planAction.length > 0 && (

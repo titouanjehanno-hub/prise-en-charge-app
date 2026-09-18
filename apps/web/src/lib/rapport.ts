@@ -33,6 +33,16 @@ export interface PlaqueChampValeur {
   unit?: string;
 }
 
+export type StatutDureeVie = "ok" | "a_prevoir" | "fin_de_vie";
+
+export interface DureeVieInfo {
+  anneeFabrication: number;
+  ageAns: number;
+  dureeVieTheoriqueAnnees: number;
+  anneesRestantes: number;
+  statut: StatutDureeVie;
+}
+
 export interface EquipementLigne {
   id: string;
   title: string;
@@ -43,6 +53,7 @@ export interface EquipementLigne {
   attention: boolean;
   photos: Photo[];
   plaque: PlaqueChampValeur[];
+  dureeVie?: DureeVieInfo;
 }
 
 export interface PlanActionItem {
@@ -87,6 +98,7 @@ export interface RapportAnalyse {
     nbHorsContrat: number;
     nbPlanAction: number;
     nbRecommandationsEnergie: number;
+    nbFinDeVie: number;
   };
   bilanPoints: string[];
   planAction: PlanActionItem[];
@@ -149,6 +161,29 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
     return resolved;
   }
 
+  const anneeCourante = new Date().getFullYear();
+
+  function resolveDureeVie(
+    equipementTypeId: string,
+    plaqueSignaletique?: Record<string, string>,
+    anneeFabricationPrevue?: number,
+  ): DureeVieInfo | undefined {
+    const type = equipementTypeById.get(equipementTypeId);
+    const dureeVieTheoriqueAnnees = type?.dureeVieTheoriqueAnnees;
+    if (!dureeVieTheoriqueAnnees) return undefined;
+
+    const valeurPlaque = plaqueSignaletique?.annee_fabrication;
+    const anneeFabrication = valeurPlaque && /^\d{4}$/.test(valeurPlaque)
+      ? Number(valeurPlaque)
+      : anneeFabricationPrevue;
+    if (!anneeFabrication) return undefined;
+
+    const ageAns = anneeCourante - anneeFabrication;
+    const anneesRestantes = dureeVieTheoriqueAnnees - ageAns;
+    const statut: StatutDureeVie = anneesRestantes <= 0 ? "fin_de_vie" : anneesRestantes <= 2 ? "a_prevoir" : "ok";
+    return { anneeFabrication, ageAns, dureeVieTheoriqueAnnees, anneesRestantes, statut };
+  }
+
   function toLigne(params: {
     id: string;
     title: string;
@@ -158,6 +193,7 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
     equipementTypeId: string;
     photos?: Photo[];
     plaqueSignaletique?: Record<string, string>;
+    anneeFabricationPrevue?: number;
   }): EquipementLigne {
     const type = equipementTypeById.get(params.equipementTypeId);
     const reglementaire = type?.estReglementaire ?? false;
@@ -171,6 +207,7 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
       attention: reglementaire && (!params.etat || estDegradeOuAbsent(params.etat)),
       photos: params.photos ?? [],
       plaque: resolvePlaque(params.equipementTypeId, params.plaqueSignaletique),
+      dureeVie: resolveDureeVie(params.equipementTypeId, params.plaqueSignaletique, params.anneeFabricationPrevue),
     };
   }
 
@@ -185,7 +222,15 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
     const title = ce.designation || type?.name || "—";
     const subtitle = localisationCe(ce);
     if (!releve) {
-      manquants.push(toLigne({ id: ce.id, title, subtitle, equipementTypeId: ce.equipementTypeId }));
+      manquants.push(
+        toLigne({
+          id: ce.id,
+          title,
+          subtitle,
+          equipementTypeId: ce.equipementTypeId,
+          anneeFabricationPrevue: ce.anneeFabrication,
+        }),
+      );
     } else if (releve.etat === "non_trouve") {
       nonTrouves.push(
         toLigne({
@@ -197,6 +242,7 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
           equipementTypeId: ce.equipementTypeId,
           photos: photosByReleveId.get(releve.id),
           plaqueSignaletique: releve.plaqueSignaletique,
+          anneeFabricationPrevue: ce.anneeFabrication,
         }),
       );
     } else if (releve.etat === "moyen" || releve.etat === "mauvais" || releve.etat === "hors_service") {
@@ -210,6 +256,7 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
           equipementTypeId: ce.equipementTypeId,
           photos: photosByReleveId.get(releve.id),
           plaqueSignaletique: releve.plaqueSignaletique,
+          anneeFabricationPrevue: ce.anneeFabrication,
         }),
       );
     } else if (releve.etat === "bon") {
@@ -223,6 +270,7 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
           equipementTypeId: ce.equipementTypeId,
           photos: photosByReleveId.get(releve.id),
           plaqueSignaletique: releve.plaqueSignaletique,
+          anneeFabricationPrevue: ce.anneeFabrication,
         }),
       );
     }
@@ -346,8 +394,24 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
     });
   }
 
+  const toutesLesLignes = [...manquants, ...nonTrouves, ...degrades, ...conformes, ...horsContrat];
+  for (const ligne of toutesLesLignes) {
+    if (!ligne.dureeVie || ligne.dureeVie.statut === "ok") continue;
+    planAction.push({
+      key: `${ligne.id}-duree-vie`,
+      title: ligne.title,
+      subtitle: ligne.subtitle,
+      action:
+        ligne.dureeVie.statut === "fin_de_vie"
+          ? `Durée de vie théorique dépassée (${ligne.dureeVie.ageAns} ans, pour ${ligne.dureeVie.dureeVieTheoriqueAnnees} ans estimés) : remplacement à prévoir.`
+          : `Fin de vie théorique proche (${ligne.dureeVie.anneesRestantes} an(s) restant(s) estimé(s)) : à anticiper dans le plan pluriannuel de travaux.`,
+      priorite: ligne.dureeVie.statut === "fin_de_vie" ? "a_prevoir" : "surveiller",
+    });
+  }
+
   const prioriteOrder: Record<PrioriteRegle, number> = { urgent: 0, a_prevoir: 1, surveiller: 2 };
   planAction.sort((a, b) => prioriteOrder[a.priorite] - prioriteOrder[b.priorite]);
+  const nbFinDeVie = toutesLesLignes.filter((l) => l.dureeVie && l.dureeVie.statut !== "ok").length;
 
   const bilanPoints: string[] = [];
   if (totalPrevu > 0) {
@@ -386,6 +450,11 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
   if (nbUrgent > 0) {
     bilanPoints.push(
       `${nbUrgent} point(s) nécessitent une action urgente pour des raisons de sécurité ou de conformité réglementaire (voir le plan d'action).`,
+    );
+  }
+  if (nbFinDeVie > 0) {
+    bilanPoints.push(
+      `${nbFinDeVie} équipement(s) ont atteint ou approchent leur durée de vie théorique : un remplacement est à anticiper dans le plan pluriannuel de travaux (voir le plan d'action).`,
     );
   }
   if (bilanPoints.length === 0) {
@@ -430,6 +499,7 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
       nbHorsContrat: horsContrat.length,
       nbPlanAction: planAction.length,
       nbRecommandationsEnergie: recommandationsEnergie.length,
+      nbFinDeVie,
     },
     bilanPoints,
     planAction,
