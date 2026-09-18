@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { updateActionMaintenance } from "@/app/contrats/[id]/plan-action/actions";
 import type { ActionMaintenance, CategorieAction, Client, Contrat, PrioriteRegle, Site, StatutAction } from "@/lib/types";
 
@@ -85,6 +85,15 @@ export function PlanActionClient({ contratId, contrat, client, site, initialActi
     }
   }
 
+  async function handleDatesChange(actionId: string, patch: { dateDebut?: string; dateEcheance?: string }) {
+    applyLocal(actionId, patch);
+    try {
+      await updateActionMaintenance(actionId, patch);
+    } catch {
+      setError("Impossible de mettre à jour les dates.");
+    }
+  }
+
   const counts = {
     toutes: actions.length,
     reglementaire: actions.filter((a) => a.categorie === "reglementaire").length,
@@ -157,7 +166,7 @@ export function PlanActionClient({ contratId, contrat, client, site, initialActi
       ) : vue === "liste" ? (
         <ListeActions sorted={sorted} onStatutChange={handleStatutChange} onDateChange={handleDateChange} />
       ) : (
-        <GanttActions actions={sorted} />
+        <GanttActions actions={sorted} onDatesChange={handleDatesChange} />
       )}
     </div>
   );
@@ -226,12 +235,77 @@ function ListeActions({
   );
 }
 
-function GanttActions({ actions }: { actions: ActionMaintenance[] }) {
+type DragMode = "move" | "resize-left" | "resize-right";
+
+interface DragState {
+  id: string;
+  mode: DragMode;
+  startClientX: number;
+  originalDebut: number;
+  originalEcheance: number;
+  deltaDays: number;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const PX_PER_DAY = 8;
+
+function toIsoDate(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
+function GanttActions({
+  actions,
+  onDatesChange,
+}: {
+  actions: ActionMaintenance[];
+  onDatesChange: (actionId: string, patch: { dateDebut?: string; dateEcheance?: string }) => void;
+}) {
   const planifiees = useMemo(
     () => actions.filter((a) => a.dateDebut && a.dateEcheance).sort((a, b) => (a.dateDebut! < b.dateDebut! ? -1 : 1)),
     [actions],
   );
   const nonPlanifiees = actions.filter((a) => !a.dateDebut || !a.dateEcheance);
+
+  const [drag, setDrag] = useState<DragState | null>(null);
+
+  useEffect(() => {
+    if (!drag) return;
+
+    function handleMove(e: PointerEvent) {
+      setDrag((prev) => {
+        if (!prev) return prev;
+        const deltaDays = Math.round((e.clientX - prev.startClientX) / PX_PER_DAY);
+        return deltaDays === prev.deltaDays ? prev : { ...prev, deltaDays };
+      });
+    }
+
+    function handleUp() {
+      setDrag((prev) => {
+        if (!prev) return null;
+        if (prev.deltaDays !== 0) {
+          const shiftMs = prev.deltaDays * DAY_MS;
+          const patch: { dateDebut?: string; dateEcheance?: string } = {};
+          if (prev.mode === "move") {
+            patch.dateDebut = toIsoDate(prev.originalDebut + shiftMs);
+            patch.dateEcheance = toIsoDate(prev.originalEcheance + shiftMs);
+          } else if (prev.mode === "resize-left") {
+            patch.dateDebut = toIsoDate(Math.min(prev.originalDebut + shiftMs, prev.originalEcheance - DAY_MS));
+          } else {
+            patch.dateEcheance = toIsoDate(Math.max(prev.originalEcheance + shiftMs, prev.originalDebut + DAY_MS));
+          }
+          onDatesChange(prev.id, patch);
+        }
+        return null;
+      });
+    }
+
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    return () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+    };
+  }, [drag, onDatesChange]);
 
   if (planifiees.length === 0) {
     return (
@@ -244,21 +318,19 @@ function GanttActions({ actions }: { actions: ActionMaintenance[] }) {
     );
   }
 
-  const dayMs = 24 * 60 * 60 * 1000;
   const starts = planifiees.map((a) => new Date(a.dateDebut!).getTime());
   const ends = planifiees.map((a) => new Date(a.dateEcheance!).getTime());
   const rangeStart = Math.min(...starts);
   const rangeEndRaw = Math.max(...ends);
-  const rangeEnd = Math.max(rangeEndRaw, rangeStart + 7 * dayMs);
-  const totalDays = Math.max(1, Math.round((rangeEnd - rangeStart) / dayMs));
-  const pxPerDay = 8;
-  const timelineWidth = totalDays * pxPerDay;
+  const rangeEnd = Math.max(rangeEndRaw, rangeStart + 7 * DAY_MS);
+  const totalDays = Math.max(1, Math.round((rangeEnd - rangeStart) / DAY_MS));
+  const timelineWidth = totalDays * PX_PER_DAY;
 
   const months: { label: string; leftPx: number }[] = [];
   const cursor = new Date(rangeStart);
   cursor.setDate(1);
   while (cursor.getTime() <= rangeEnd) {
-    const leftPx = Math.max(0, Math.round(((cursor.getTime() - rangeStart) / dayMs) * pxPerDay));
+    const leftPx = Math.max(0, Math.round(((cursor.getTime() - rangeStart) / DAY_MS) * PX_PER_DAY));
     months.push({
       label: cursor.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }),
       leftPx,
@@ -266,10 +338,26 @@ function GanttActions({ actions }: { actions: ActionMaintenance[] }) {
     cursor.setMonth(cursor.getMonth() + 1);
   }
 
-  const todayLeftPx = Math.round(((Date.now() - rangeStart) / dayMs) * pxPerDay);
+  const todayLeftPx = Math.round(((Date.now() - rangeStart) / DAY_MS) * PX_PER_DAY);
+
+  function startDrag(e: React.PointerEvent, action: ActionMaintenance, mode: DragMode) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDrag({
+      id: action.id,
+      mode,
+      startClientX: e.clientX,
+      originalDebut: new Date(action.dateDebut!).getTime(),
+      originalEcheance: new Date(action.dateEcheance!).getTime(),
+      deltaDays: 0,
+    });
+  }
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="mb-2 text-xs text-slate-400">
+        Glisse une barre pour déplacer l&apos;action, ou tire ses bords pour ajuster le début / la fin.
+      </p>
       <div className="overflow-x-auto">
         <div className="flex">
           <div className="w-56 shrink-0" />
@@ -285,8 +373,20 @@ function GanttActions({ actions }: { actions: ActionMaintenance[] }) {
         </div>
 
         {planifiees.map((a) => {
-          const startPx = Math.round(((new Date(a.dateDebut!).getTime() - rangeStart) / dayMs) * pxPerDay);
-          const endPx = Math.round(((new Date(a.dateEcheance!).getTime() - rangeStart) / dayMs) * pxPerDay);
+          let startPx = Math.round(((new Date(a.dateDebut!).getTime() - rangeStart) / DAY_MS) * PX_PER_DAY);
+          let endPx = Math.round(((new Date(a.dateEcheance!).getTime() - rangeStart) / DAY_MS) * PX_PER_DAY);
+          const isDragging = drag?.id === a.id;
+          if (isDragging) {
+            const deltaPx = drag.deltaDays * PX_PER_DAY;
+            if (drag.mode === "move") {
+              startPx += deltaPx;
+              endPx += deltaPx;
+            } else if (drag.mode === "resize-left") {
+              startPx = Math.min(startPx + deltaPx, endPx - PX_PER_DAY);
+            } else {
+              endPx = Math.max(endPx + deltaPx, startPx + PX_PER_DAY);
+            }
+          }
           const widthPx = Math.max(6, endPx - startPx);
           return (
             <div key={a.id} className="flex items-center border-b border-slate-50 py-2">
@@ -303,10 +403,20 @@ function GanttActions({ actions }: { actions: ActionMaintenance[] }) {
                   <div className="absolute top-0 h-full w-px bg-red-300" style={{ left: todayLeftPx }} />
                 )}
                 <div
-                  title={`${a.dateDebut} → ${a.dateEcheance} (${STATUT_LABEL[a.statut]})`}
-                  className={`absolute top-0.5 h-4 rounded ${STATUT_BAR_COLOR[a.statut]}`}
+                  title={`${a.dateDebut} → ${a.dateEcheance} (${STATUT_LABEL[a.statut]}) — glisser pour déplacer`}
+                  onPointerDown={(e) => startDrag(e, a, "move")}
+                  className={`group absolute top-0.5 h-4 cursor-grab touch-none rounded active:cursor-grabbing ${STATUT_BAR_COLOR[a.statut]} ${isDragging ? "opacity-80 ring-2 ring-slate-900/30" : ""}`}
                   style={{ left: startPx, width: widthPx }}
-                />
+                >
+                  <div
+                    onPointerDown={(e) => startDrag(e, a, "resize-left")}
+                    className="absolute -left-1 top-0 h-full w-2 cursor-ew-resize touch-none"
+                  />
+                  <div
+                    onPointerDown={(e) => startDrag(e, a, "resize-right")}
+                    className="absolute -right-1 top-0 h-full w-2 cursor-ew-resize touch-none"
+                  />
+                </div>
               </div>
             </div>
           );
