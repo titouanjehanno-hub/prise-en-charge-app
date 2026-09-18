@@ -37,7 +37,12 @@ function describeRegle(regle: RegleApe, equipementTypeById: Map<string, Equipeme
   return parts.join(" · ");
 }
 
-export default async function ReglesApePage() {
+export default async function ReglesApePage(props: PageProps<"/regles-ape">) {
+  const searchParams = await props.searchParams;
+  const categorieFiltre = searchParams.categorie === "securite" || searchParams.categorie === "energie"
+    ? searchParams.categorie
+    : "toutes";
+
   const [reglesApe, { lotsTechniques, equipementTypes }, role] = await Promise.all([
     getReglesApe(),
     getReferentiel(),
@@ -46,8 +51,18 @@ export default async function ReglesApePage() {
   const equipementTypeById = new Map<string, EquipementType>(equipementTypes.map((t) => [t.id, t]));
   const isAdmin = role === "admin";
 
-  const globales = reglesApe.filter((r) => !r.orgId);
-  const personnalisees = reglesApe.filter((r) => r.orgId);
+  const reglesFiltrees = categorieFiltre === "toutes"
+    ? reglesApe
+    : reglesApe.filter((r) => r.categorie === categorieFiltre);
+
+  const nbSecurite = reglesApe.filter((r) => r.categorie === "securite").length;
+  const nbEnergie = reglesApe.filter((r) => r.categorie === "energie").length;
+
+  const TABS: { key: "toutes" | "securite" | "energie"; label: string; count: number }[] = [
+    { key: "toutes", label: "Toutes", count: reglesApe.length },
+    { key: "securite", label: "Réglementaire / sécurité", count: nbSecurite },
+    { key: "energie", label: "Énergie (APE)", count: nbEnergie },
+  ];
 
   function RegleRow({ regle, editable }: { regle: RegleApe; editable: boolean }) {
     return (
@@ -64,6 +79,11 @@ export default async function ReglesApePage() {
             {regle.priorite && (
               <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${PRIORITE_COLOR[regle.priorite]}`}>
                 {PRIORITE_LABEL[regle.priorite]}
+              </span>
+            )}
+            {!regle.orgId && (
+              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-500">
+                Référentiel global
               </span>
             )}
           </div>
@@ -86,10 +106,11 @@ export default async function ReglesApePage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Règles APE &amp; plan d&apos;action</h1>
+          <h1 className="text-xl font-semibold text-slate-900">Règles APE &amp; réglementaire</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Actions suggérées automatiquement sur l&apos;écran d&apos;analyse (efficacité énergétique, ou sécurité /
-            conformité réglementaire), selon le type d&apos;équipement, son état et/ou sa plaque signalétique.
+            Toutes les actions suggérées automatiquement sur l&apos;écran d&apos;analyse (obligations réglementaires /
+            sécurité, ou efficacité énergétique), selon le type d&apos;équipement, son état et/ou sa plaque
+            signalétique. Complète cette liste au fur et à mesure des obligations que tu identifies.
           </p>
         </div>
         {isAdmin && (
@@ -108,31 +129,31 @@ export default async function ReglesApePage() {
         </p>
       )}
 
-      <section>
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Vos règles ({personnalisees.length})
-        </h2>
-        {personnalisees.length === 0 ? (
-          <p className="text-sm text-slate-400">Aucune règle personnalisée pour l&apos;instant.</p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {personnalisees.map((regle) => (
-              <RegleRow key={regle.id} regle={regle} editable={isAdmin} />
-            ))}
-          </div>
-        )}
-      </section>
+      <div className="flex gap-2 border-b border-slate-200">
+        {TABS.map((tab) => (
+          <Link
+            key={tab.key}
+            href={tab.key === "toutes" ? "/regles-ape" : `/regles-ape?categorie=${tab.key}`}
+            className={`border-b-2 px-3 py-2 text-sm font-medium ${
+              categorieFiltre === tab.key
+                ? "border-indigo-600 text-indigo-700"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            {tab.label} ({tab.count})
+          </Link>
+        ))}
+      </div>
 
-      <section>
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Référentiel global ({globales.length})
-        </h2>
+      {reglesFiltrees.length === 0 ? (
+        <p className="text-sm text-slate-400">Aucune règle dans cette catégorie pour l&apos;instant.</p>
+      ) : (
         <div className="flex flex-col gap-2">
-          {globales.map((regle) => (
-            <RegleRow key={regle.id} regle={regle} editable={false} />
+          {reglesFiltrees.map((regle) => (
+            <RegleRow key={regle.id} regle={regle} editable={isAdmin} />
           ))}
         </div>
-      </section>
+      )}
     </div>
   );
 }

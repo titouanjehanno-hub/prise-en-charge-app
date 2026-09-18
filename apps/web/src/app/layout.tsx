@@ -42,7 +42,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                   Contrats
                 </a>
                 <a href="/regles-ape" className="hover:text-slate-900">
-                  Règles APE
+                  Règles APE &amp; réglementaire
                 </a>
               </nav>
             )}
