@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { logout } from "@/app/login/actions";
 import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
@@ -57,6 +58,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           </div>
         </header>
         <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">{children}</main>
+        <Analytics />
       </body>
     </html>
   );
