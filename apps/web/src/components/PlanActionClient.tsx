@@ -248,6 +248,7 @@ interface DragState {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PX_PER_DAY = 8;
+const LABEL_COL_PX = 224; // doit correspondre à la largeur w-56 des colonnes de libellé
 
 function toIsoDate(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10);
@@ -332,11 +333,15 @@ function GanttActions({
   while (cursor.getTime() <= rangeEnd) {
     const leftPx = Math.max(0, Math.round(((cursor.getTime() - rangeStart) / DAY_MS) * PX_PER_DAY));
     months.push({
-      label: cursor.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }),
+      label: cursor.toLocaleDateString("fr-FR", { month: "long", year: "numeric" }),
       leftPx,
     });
     cursor.setMonth(cursor.getMonth() + 1);
   }
+  const monthBands = months.map((m, i) => ({
+    ...m,
+    widthPx: (months[i + 1]?.leftPx ?? timelineWidth) - m.leftPx,
+  }));
 
   const todayLeftPx = Math.round(((Date.now() - rangeStart) / DAY_MS) * PX_PER_DAY);
 
@@ -359,20 +364,32 @@ function GanttActions({
         Glisse une barre pour déplacer l&apos;action, ou tire ses bords pour ajuster le début / la fin.
       </p>
       <div className="overflow-x-auto">
-        <div className="flex">
-          <div className="w-56 shrink-0" />
-          <div className="relative" style={{ width: timelineWidth, minWidth: "100%" }}>
-            <div className="relative h-6 border-b border-slate-200 text-xs text-slate-400">
-              {months.map((m, i) => (
-                <span key={i} className="absolute top-0" style={{ left: m.leftPx }}>
+        <div className="relative" style={{ minWidth: LABEL_COL_PX + timelineWidth }}>
+          <div className="pointer-events-none absolute inset-y-0" style={{ left: LABEL_COL_PX, width: timelineWidth }}>
+            {monthBands.map((m, i) => (
+              <div
+                key={i}
+                className={`absolute top-0 bottom-0 border-l border-slate-200 ${i % 2 === 1 ? "bg-slate-50" : ""}`}
+                style={{ left: m.leftPx, width: m.widthPx }}
+              />
+            ))}
+            {todayLeftPx >= 0 && todayLeftPx <= timelineWidth && (
+              <div className="absolute top-0 bottom-0 w-px bg-red-400" style={{ left: todayLeftPx }} />
+            )}
+          </div>
+
+          <div className="flex">
+            <div className="w-56 shrink-0" />
+            <div className="relative h-7 border-b border-slate-200 text-xs font-medium text-slate-500" style={{ width: timelineWidth, minWidth: "100%" }}>
+              {monthBands.map((m, i) => (
+                <span key={i} className="absolute top-1 truncate pl-1" style={{ left: m.leftPx, width: m.widthPx }}>
                   {m.label}
                 </span>
               ))}
             </div>
           </div>
-        </div>
 
-        {planifiees.map((a) => {
+          {planifiees.map((a) => {
           let startPx = Math.round(((new Date(a.dateDebut!).getTime() - rangeStart) / DAY_MS) * PX_PER_DAY);
           let endPx = Math.round(((new Date(a.dateEcheance!).getTime() - rangeStart) / DAY_MS) * PX_PER_DAY);
           const isDragging = drag?.id === a.id;
@@ -399,9 +416,6 @@ function GanttActions({
                 </span>
               </div>
               <div className="relative h-5" style={{ width: timelineWidth, minWidth: "100%" }}>
-                {todayLeftPx >= 0 && todayLeftPx <= timelineWidth && (
-                  <div className="absolute top-0 h-full w-px bg-red-300" style={{ left: todayLeftPx }} />
-                )}
                 <div
                   title={`${a.dateDebut} → ${a.dateEcheance} (${STATUT_LABEL[a.statut]}) — glisser pour déplacer`}
                   onPointerDown={(e) => startDrag(e, a, "move")}
@@ -420,7 +434,8 @@ function GanttActions({
               </div>
             </div>
           );
-        })}
+          })}
+        </div>
       </div>
 
       {nonPlanifiees.length > 0 && (
