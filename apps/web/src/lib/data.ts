@@ -2,6 +2,8 @@
 import { createClient } from "@/lib/supabase/server";
 import type {
   ActionApe,
+  ActionMaintenance,
+  CategorieAction,
   Client,
   Contrat,
   ContratEquipement,
@@ -10,9 +12,11 @@ import type {
   EtatEquipement,
   LotTechnique,
   Photo,
+  PrioriteRegle,
   PriseEnCharge,
   RegleApe,
   Site,
+  StatutAction,
 } from "./types";
 
 function mapLot(row: { id: string; code: string; name: string }): LotTechnique {
@@ -398,4 +402,88 @@ export async function getActionsApeParEquipementReleve(equipementReleveId: strin
     .order("created_at");
   if (error) throw new Error(error.message);
   return (data ?? []).map(mapActionApe);
+}
+
+function mapActionMaintenance(row: {
+  id: string;
+  contrat_id: string;
+  cle: string;
+  prise_en_charge_id: string | null;
+  equipement_releve_id: string | null;
+  contrat_equipement_id: string | null;
+  titre: string;
+  description: string;
+  categorie: CategorieAction;
+  priorite: PrioriteRegle;
+  statut: StatutAction;
+  date_debut: string | null;
+  date_echeance: string | null;
+  date_realisation: string | null;
+}): ActionMaintenance {
+  return {
+    id: row.id,
+    contratId: row.contrat_id,
+    cle: row.cle,
+    priseEnChargeId: row.prise_en_charge_id ?? undefined,
+    equipementReleveId: row.equipement_releve_id ?? undefined,
+    contratEquipementId: row.contrat_equipement_id ?? undefined,
+    titre: row.titre,
+    description: row.description,
+    categorie: row.categorie,
+    priorite: row.priorite,
+    statut: row.statut,
+    dateDebut: row.date_debut ?? undefined,
+    dateEcheance: row.date_echeance ?? undefined,
+    dateRealisation: row.date_realisation ?? undefined,
+  };
+}
+
+export async function getActionsMaintenancePourContrat(contratId: string): Promise<ActionMaintenance[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("actions_maintenance")
+    .select("*")
+    .eq("contrat_id", contratId)
+    .order("created_at");
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapActionMaintenance);
+}
+
+export interface SyncActionMaintenanceInput {
+  cle: string;
+  priseEnChargeId: string;
+  equipementReleveId?: string;
+  contratEquipementId?: string;
+  titre: string;
+  description: string;
+  categorie: CategorieAction;
+  priorite: PrioriteRegle;
+}
+
+// Enregistre (ou met à jour le libellé de) chaque item de plan d'action
+// détecté automatiquement, sans jamais toucher au statut/dates déjà
+// renseignés par un utilisateur (conflit géré côté base sur (contrat_id, cle)).
+export async function syncActionsMaintenance(contratId: string, items: SyncActionMaintenanceInput[]): Promise<void> {
+  if (items.length === 0) return;
+  const supabase = await createClient();
+  const { data: orgId, error: orgError } = await supabase.rpc("current_org_id");
+  if (orgError || !orgId) return;
+
+  const rows = items.map((item) => ({
+    org_id: orgId,
+    contrat_id: contratId,
+    cle: item.cle,
+    prise_en_charge_id: item.priseEnChargeId,
+    equipement_releve_id: item.equipementReleveId ?? null,
+    contrat_equipement_id: item.contratEquipementId ?? null,
+    titre: item.titre,
+    description: item.description,
+    categorie: item.categorie,
+    priorite: item.priorite,
+  }));
+
+  await supabase.from("actions_maintenance").upsert(rows, {
+    onConflict: "contrat_id,cle",
+    ignoreDuplicates: false,
+  });
 }

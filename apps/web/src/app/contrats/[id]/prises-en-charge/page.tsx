@@ -27,7 +27,15 @@ export default async function PrisesEnChargePage(
           <p className="text-xs font-medium uppercase tracking-wide text-indigo-600">{contrat.reference}</p>
           <h1 className="text-xl font-semibold text-slate-900">Prises en charge</h1>
         </div>
-        <NouvellePriseEnChargeButton contratId={id} />
+        <div className="flex items-start gap-2">
+          <Link
+            href={`/contrats/${id}/plan-action`}
+            className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
+            Plan d&apos;action
+          </Link>
+          <NouvellePriseEnChargeButton contratId={id} />
+        </div>
       </div>
 
       {prisesEnCharge.length === 0 ? (

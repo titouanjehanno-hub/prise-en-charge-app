@@ -12,8 +12,11 @@ import {
   getReferentiel,
   getReglesApe,
   getSite,
+  syncActionsMaintenance,
+  type SyncActionMaintenanceInput,
 } from "./data";
 import type {
+  CategorieAction,
   Client,
   Contrat,
   ContratEquipement,
@@ -62,6 +65,9 @@ export interface PlanActionItem {
   subtitle?: string;
   action: string;
   priorite: PrioriteRegle;
+  categorie: CategorieAction;
+  equipementReleveId?: string;
+  contratEquipementId?: string;
 }
 
 export interface RecommandationEnergie {
@@ -360,6 +366,9 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
         subtitle,
         action: regle.action,
         priorite: regle.priorite ?? "a_prevoir",
+        categorie: "reglementaire",
+        equipementReleveId: releve.id,
+        contratEquipementId: ce?.id,
       });
     }
   }
@@ -378,6 +387,9 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
           ? "Équipement réglementaire non retrouvé sur site : vérifier sa présence et sa conformité."
           : "Équipement réglementaire en état dégradé : vérification de conformité et remise en état à prévoir.",
       priorite: releve.etat === "mauvais" || releve.etat === "hors_service" ? "urgent" : "a_prevoir",
+      categorie: "reglementaire",
+      equipementReleveId: releve.id,
+      contratEquipementId: ce?.id,
     });
   }
 
@@ -391,6 +403,8 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
       subtitle: localisationCe(ce),
       action: "Équipement réglementaire non contrôlé lors de cette visite : vérification à prévoir.",
       priorite: "a_prevoir",
+      categorie: "reglementaire",
+      contratEquipementId: ce.id,
     });
   }
 
@@ -406,6 +420,7 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
           ? `Durée de vie théorique dépassée (${ligne.dureeVie.ageAns} ans, pour ${ligne.dureeVie.dureeVieTheoriqueAnnees} ans estimés) : remplacement à prévoir.`
           : `Fin de vie théorique proche (${ligne.dureeVie.anneesRestantes} an(s) restant(s) estimé(s)) : à anticiper dans le plan pluriannuel de travaux.`,
       priorite: ligne.dureeVie.statut === "fin_de_vie" ? "a_prevoir" : "surveiller",
+      categorie: "travaux",
     });
   }
 
@@ -482,6 +497,29 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
   const propositionsIngenieur: PropositionIngenieur[] = actionsApe
     .filter((a) => a.origine === "ingenieur")
     .map((a) => ({ id: a.id, description: a.description }));
+
+  const itemsASynchroniser: SyncActionMaintenanceInput[] = [
+    ...planAction.map((item) => ({
+      cle: item.key,
+      priseEnChargeId: priseEnCharge.id,
+      equipementReleveId: item.equipementReleveId,
+      contratEquipementId: item.contratEquipementId,
+      titre: item.title,
+      description: item.action,
+      categorie: item.categorie,
+      priorite: item.priorite,
+    })),
+    ...recommandationsEnergie.map((r) => ({
+      cle: `${r.key}-energie`,
+      priseEnChargeId: priseEnCharge.id,
+      equipementReleveId: r.key,
+      titre: r.title,
+      description: r.actions.join(" · "),
+      categorie: "energie" as CategorieAction,
+      priorite: "surveiller" as PrioriteRegle,
+    })),
+  ];
+  await syncActionsMaintenance(contrat.id, itemsASynchroniser);
 
   return {
     contrat,

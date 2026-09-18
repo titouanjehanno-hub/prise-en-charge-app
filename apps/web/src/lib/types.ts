@@ -150,3 +150,23 @@ export interface NewRegleApeInput {
   categorie: CategorieRegle;
   priorite?: PrioriteRegle;
 }
+
+export type CategorieAction = "reglementaire" | "energie" | "travaux";
+export type StatutAction = "a_faire" | "en_cours" | "fait";
+
+export interface ActionMaintenance {
+  id: string;
+  contratId: string;
+  cle: string;
+  priseEnChargeId?: string;
+  equipementReleveId?: string;
+  contratEquipementId?: string;
+  titre: string;
+  description: string;
+  categorie: CategorieAction;
+  priorite: PrioriteRegle;
+  statut: StatutAction;
+  dateDebut?: string;
+  dateEcheance?: string;
+  dateRealisation?: string;
+}
