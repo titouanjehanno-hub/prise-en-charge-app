@@ -172,6 +172,13 @@ export async function getContratEquipements(contratId: string): Promise<ContratE
   return (data ?? []).map(mapContratEquipement);
 }
 
+export async function getContratEquipement(id: string): Promise<ContratEquipement | undefined> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("contrat_equipements").select("*").eq("id", id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? mapContratEquipement(data) : undefined;
+}
+
 function mapPriseEnCharge(row: {
   id: string;
   contrat_id: string;
@@ -262,6 +269,13 @@ export async function getEquipementsReleves(priseEnChargeId: string): Promise<Eq
     .order("created_at");
   if (error) throw new Error(error.message);
   return (data ?? []).map(mapEquipementReleve);
+}
+
+export async function getEquipementReleve(id: string): Promise<EquipementReleve | undefined> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("equipements_releves").select("*").eq("id", id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? mapEquipementReleve(data) : undefined;
 }
 
 export async function getPhotosPourEquipementsReleves(equipementReleveIds: string[]): Promise<Map<string, Photo[]>> {
@@ -370,6 +384,17 @@ export async function getActionsApePourPriseEnCharge(priseEnChargeId: string): P
     .from("actions_ape")
     .select("*")
     .eq("prise_en_charge_id", priseEnChargeId)
+    .order("created_at");
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(mapActionApe);
+}
+
+export async function getActionsApeParEquipementReleve(equipementReleveId: string): Promise<ActionApe[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("actions_ape")
+    .select("*")
+    .eq("equipement_releve_id", equipementReleveId)
     .order("created_at");
   if (error) throw new Error(error.message);
   return (data ?? []).map(mapActionApe);

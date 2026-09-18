@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { NouvellePriseEnChargeButton } from "@/components/NouvellePriseEnChargeButton";
 import { getContrat, getPrisesEnChargePourContrat } from "@/lib/data";
 
 const STATUT_LABEL: Record<string, string> = {
@@ -21,14 +22,18 @@ export default async function PrisesEnChargePage(
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-indigo-600">{contrat.reference}</p>
-        <h1 className="text-xl font-semibold text-slate-900">Prises en charge</h1>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-indigo-600">{contrat.reference}</p>
+          <h1 className="text-xl font-semibold text-slate-900">Prises en charge</h1>
+        </div>
+        <NouvellePriseEnChargeButton contratId={id} />
       </div>
 
       {prisesEnCharge.length === 0 ? (
         <p className="rounded-md border border-dashed border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
-          Aucune prise en charge pour l&apos;instant. Elles sont créées depuis l&apos;application mobile.
+          Aucune prise en charge pour l&apos;instant. Crée-en une depuis le bouton ci-dessus, ou depuis
+          l&apos;application mobile.
         </p>
       ) : (
         <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -54,12 +59,22 @@ export default async function PrisesEnChargePage(
                   <td className="px-4 py-3 text-slate-500">{pec.dateRealisation ?? "—"}</td>
                   <td className="px-4 py-3 text-slate-500">{pec.nbEquipementsReleves}</td>
                   <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/contrats/${id}/prises-en-charge/${pec.id}`}
-                      className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
-                    >
-                      Voir l&apos;analyse
-                    </Link>
+                    <div className="flex justify-end gap-2">
+                      {pec.statut !== "validee" && (
+                        <Link
+                          href={`/contrats/${id}/prises-en-charge/${pec.id}/saisie`}
+                          className="rounded-md border border-indigo-200 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50"
+                        >
+                          Saisir
+                        </Link>
+                      )}
+                      <Link
+                        href={`/contrats/${id}/prises-en-charge/${pec.id}`}
+                        className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500"
+                      >
+                        Voir l&apos;analyse
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}
