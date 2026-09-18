@@ -3,6 +3,7 @@
 // diverger ces trois représentations du même rapport.
 import {
   getActionsApePourPriseEnCharge,
+  getActionsMaintenancePourContrat,
   getClient,
   getContrat,
   getContratEquipements,
@@ -28,6 +29,7 @@ import type {
   PrioriteRegle,
   RegleApe,
   Site,
+  StatutAction,
 } from "./types";
 
 export interface PlaqueChampValeur {
@@ -68,6 +70,11 @@ export interface PlanActionItem {
   categorie: CategorieAction;
   equipementReleveId?: string;
   contratEquipementId?: string;
+  // Suivi persistant (table actions_maintenance), rattaché après synchronisation.
+  actionMaintenanceId?: string;
+  statut?: StatutAction;
+  dateDebut?: string;
+  dateEcheance?: string;
 }
 
 export interface RecommandationEnergie {
@@ -520,6 +527,20 @@ export async function getRapportAnalyse(contratId: string, pecId: string): Promi
     })),
   ];
   await syncActionsMaintenance(contrat.id, itemsASynchroniser);
+
+  // Récupère le statut/dates de suivi (saisis depuis la page "Plan d'action"
+  // consolidée) pour les refléter directement dans cette analyse.
+  const actionsMaintenance = await getActionsMaintenancePourContrat(contrat.id);
+  const suiviParCle = new Map(actionsMaintenance.map((a) => [a.cle, a]));
+  for (const item of planAction) {
+    const suivi = suiviParCle.get(item.key);
+    if (suivi) {
+      item.actionMaintenanceId = suivi.id;
+      item.statut = suivi.statut;
+      item.dateDebut = suivi.dateDebut;
+      item.dateEcheance = suivi.dateEcheance;
+    }
+  }
 
   return {
     contrat,

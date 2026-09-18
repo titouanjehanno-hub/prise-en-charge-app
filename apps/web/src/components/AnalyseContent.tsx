@@ -1,12 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { validerPriseEnCharge } from "@/app/contrats/[id]/prises-en-charge/[pecId]/actions";
+import { updateActionMaintenance } from "@/app/contrats/[id]/plan-action/actions";
 import { AnalyseSynthese } from "@/components/AnalyseSynthese";
 import { EquipementLigneCard } from "@/components/EquipementLigneCard";
 import { PropositionsIngenieur } from "@/components/PropositionsIngenieur";
-import type { RapportAnalyse } from "@/lib/rapport";
-import type { PrioriteRegle } from "@/lib/types";
+import type { PlanActionItem, RapportAnalyse } from "@/lib/rapport";
+import type { PrioriteRegle, StatutAction } from "@/lib/types";
+
+const STATUT_ACTION_LABEL: Record<StatutAction, string> = {
+  a_faire: "À faire",
+  en_cours: "En cours",
+  fait: "Fait",
+};
 
 const STATUT_LABEL: Record<string, string> = {
   preparee: "Préparée",
@@ -58,7 +66,6 @@ export function AnalyseContent({ contratId: id, pecId, rapport }: AnalyseContent
     priseEnCharge,
     stats,
     bilanPoints,
-    planAction,
     recommandationsEnergie,
     remarquesTechnicien,
     propositionsIngenieur,
@@ -69,12 +76,23 @@ export function AnalyseContent({ contratId: id, pecId, rapport }: AnalyseContent
     conformes,
   } = rapport;
 
+  const [planAction, setPlanAction] = useState<PlanActionItem[]>(rapport.planAction);
   const [filtre, setFiltre] = useState<CategorieEquipement | null>(null);
   const sectionRef = useRef<HTMLDivElement>(null);
 
   function toggleFiltre(categorie: CategorieEquipement) {
     setFiltre((prev) => (prev === categorie ? null : categorie));
     requestAnimationFrame(() => sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+
+  async function handlePlanActionStatutChange(item: PlanActionItem, statut: StatutAction) {
+    if (!item.actionMaintenanceId) return;
+    setPlanAction((prev) => prev.map((p) => (p.key === item.key ? { ...p, statut } : p)));
+    try {
+      await updateActionMaintenance(item.actionMaintenanceId, { statut });
+    } catch {
+      // best-effort : le statut se resynchronisera à la prochaine visite de la page
+    }
   }
 
   function StatCard({
@@ -200,7 +218,15 @@ export function AnalyseContent({ contratId: id, pecId, rapport }: AnalyseContent
 
       {planAction.length > 0 && (
         <section>
-          <h2 className="mb-2 text-sm font-semibold text-red-700">Plan d&apos;action — {planAction.length} point(s)</h2>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-red-700">Plan d&apos;action — {planAction.length} point(s)</h2>
+            <Link
+              href={`/contrats/${id}/plan-action`}
+              className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+            >
+              Voir le plan d&apos;action complet (statuts, dates, Gantt) →
+            </Link>
+          </div>
           <div className="flex flex-col gap-2">
             {planAction.map((item) => (
               <div key={item.key} className={`rounded-md border p-3 ${PRIORITE_BORDER[item.priorite]}`}>
@@ -214,6 +240,24 @@ export function AnalyseContent({ contratId: id, pecId, rapport }: AnalyseContent
                   </span>
                 </div>
                 <p className="mt-2 text-xs text-slate-600">{item.action}</p>
+                {item.actionMaintenanceId && (
+                  <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-2">
+                    <select
+                      value={item.statut ?? "a_faire"}
+                      onChange={(e) => handlePlanActionStatutChange(item, e.target.value as StatutAction)}
+                      className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600"
+                    >
+                      <option value="a_faire">{STATUT_ACTION_LABEL.a_faire}</option>
+                      <option value="en_cours">{STATUT_ACTION_LABEL.en_cours}</option>
+                      <option value="fait">{STATUT_ACTION_LABEL.fait}</option>
+                    </select>
+                    {(item.dateDebut || item.dateEcheance) && (
+                      <span className="text-xs text-slate-400">
+                        {item.dateDebut ?? "?"} → {item.dateEcheance ?? "?"}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
